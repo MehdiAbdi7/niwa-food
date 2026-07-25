@@ -7,15 +7,11 @@ const objectIdSchema = z.string().refine((val) => Types.ObjectId.isValid(val), {
 
 const orderItemExtraSchema = z.object({
   extraId: objectIdSchema,
-  name: z.string().min(1),
-  price: z.number().nonnegative(),
 });
 
 const orderItemSchema = z.object({
   menuItemId: objectIdSchema,
-  name: z.string().min(1),
   variantSelected: z.record(z.string(), z.string()).default({}),
-  unitPrice: z.number().nonnegative(),
   selectedExtras: z.array(orderItemExtraSchema).default([]),
   excludedIngredients: z.array(z.string().trim()).default([]),
   quantity: z.number().int().min(1),

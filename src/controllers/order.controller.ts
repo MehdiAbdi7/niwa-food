@@ -1,10 +1,10 @@
 import { NextFunction, Request, Response } from "express";
-import { Types, type QueryFilter } from "mongoose";
+import { type QueryFilter } from "mongoose";
 import { Order } from "../models/order.js";
 import { Table } from "../models/table.js";
 import { IOrder } from "../types/models/order.js";
 import { StatusCodes } from "http-status-codes";
-import { enforceKidsMenuPricing } from "../utils/kidsMenu.js";
+import { resolveOrderItemsPricing } from "../utils/pricing.js";
 import { io } from "../config/socket.js";
 import {
   errorResponse,
@@ -23,18 +23,6 @@ import {
 } from "../validation/order.js";
 import { getNextOrderNumber, resetOrderCounter } from "../utils/dailyNumber.js";
 
-// Convertit les items reçus de Zod (ids en string) vers le format attendu par Mongoose (ids en ObjectId)
-function toOrderItems(items: CreateOrderInput["items"]) {
-  return items.map((item) => ({
-    ...item,
-    menuItemId: new Types.ObjectId(item.menuItemId),
-    selectedExtras: item.selectedExtras.map((extra) => ({
-      ...extra,
-      extraId: new Types.ObjectId(extra.extraId),
-    })),
-  }));
-}
-
 export async function createOrder(
   req: Request<{}, {}, CreateOrderInput>,
   res: Response,
@@ -43,7 +31,9 @@ export async function createOrder(
   try {
     const data = req.body;
 
-    await enforceKidsMenuPricing(data.items);
+    // Résout les vrais prix/noms depuis la base (menuItem + variant + extras).
+    // Le client ne fournit que des IDs et des choix, jamais de prix.
+    const resolvedItems = await resolveOrderItemsPricing(data.items);
 
     // Cas dine_in : on vérifie si la table a déjà une commande en cours
     if (data.type === "dine_in") {
@@ -61,7 +51,7 @@ export async function createOrder(
 
         // Fusion auto : la table est occupée par une commande pending ou ready -> on ajoute les items dedans
         if (existingOrder) {
-          existingOrder.items.push(...toOrderItems(data.items));
+          existingOrder.items.push(...resolvedItems);
           if (data.remark) existingOrder.remark = data.remark;
           await existingOrder.save();
 
@@ -78,7 +68,11 @@ export async function createOrder(
 
       // Pas de commande en cours -> nouvelle commande + occupation de la table
       const dailyNumber = await getNextOrderNumber();
-      const newOrder = await Order.create({ ...data, dailyNumber });
+      const newOrder = await Order.create({
+        ...data,
+        items: resolvedItems,
+        dailyNumber,
+      });
       table.currentOrderId = newOrder._id;
       table.status = "occupied";
       await table.save();
@@ -96,7 +90,11 @@ export async function createOrder(
 
     // takeaway / delivery : toujours une commande indépendante
     const dailyNumber = await getNextOrderNumber();
-    const newOrder = await Order.create({ ...data, dailyNumber });
+    const newOrder = await Order.create({
+      ...data,
+      items: resolvedItems,
+      dailyNumber,
+    });
 
     io.to("dashboard").emit("new_order", newOrder);
 
@@ -127,6 +125,48 @@ export async function getOrders(
       .sort({ createdAt: -1 });
 
     successResponse(res, orders, "Commandes récupérées avec succès");
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Suppression physique d'une commande — réservé aux admins, et seulement
+// pour les commandes qui n'ont pas encore été traitées ou qui sont annulées.
+// Une commande ready/out_for_delivery/completed reste en base pour toujours
+// (traçabilité + intégrité des stats déjà calculées).
+export async function deleteOrder(
+  req: Request<{ id: string }>,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      errorResponse(res, "Commande introuvable", StatusCodes.NOT_FOUND);
+      return;
+    }
+
+    const deletableStatuses = ["pending", "cancelled"];
+    if (!deletableStatuses.includes(order.status)) {
+      errorResponse(
+        res,
+        "Seules les commandes en attente ou annulées peuvent être supprimées",
+        StatusCodes.BAD_REQUEST,
+      );
+      return;
+    }
+
+    // Si la commande dine_in occupait encore une table, on la libère avant suppression
+    if (order.type === "dine_in" && order.table) {
+      await Table.updateOne(
+        { _id: order.table, currentOrderId: order._id },
+        { status: "free", currentOrderId: null },
+      );
+    }
+
+    await order.deleteOne();
+
+    successResponse(res, null, "Commande supprimée avec succès");
   } catch (error) {
     next(error);
   }
@@ -171,9 +211,9 @@ export async function addItemsToOrder(
       return;
     }
 
-    await enforceKidsMenuPricing(req.body.items);
+    const resolvedItems = await resolveOrderItemsPricing(req.body.items);
 
-    order.items.push(...toOrderItems(req.body.items));
+    order.items.push(...resolvedItems);
     await order.save();
 
     successResponse(res, order, "Items ajoutés avec succès");

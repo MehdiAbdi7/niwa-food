@@ -81,9 +81,21 @@ app.use(
       return;
     }
 
-    // Erreur métier custom avec statusCode explicite (ex: enforceKidsMenuPricing)
+    // Erreur métier custom avec statusCode explicite (ex: resolveOrderItemsPricing)
     if (err.statusCode && typeof err.statusCode === "number") {
       errorResponse(res, err.message, err.statusCode);
+      return;
+    }
+
+    // Token JWT invalide ou expiré (jwt.verify() dans CheckAuth)
+    if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+      errorResponse(
+        res,
+        err.name === "TokenExpiredError"
+          ? "Session expirée, veuillez vous reconnecter"
+          : "Token invalide",
+        StatusCodes.UNAUTHORIZED,
+      );
       return;
     }
 

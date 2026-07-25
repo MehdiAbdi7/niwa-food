@@ -8,6 +8,7 @@ import {
   updateOrderStatus,
   trackOrder,
   resetCounter,
+  deleteOrder,
   getHistoryYears,
   getHistoryMonths,
   getHistoryDays,
@@ -87,5 +88,6 @@ orderRouter.patch(
   validateBodySchema(updateOrderStatusSchema),
   updateOrderStatus,
 );
+orderRouter.delete("/:id", CheckAuth, isAdmin, deleteOrder);
 
 export default orderRouter;

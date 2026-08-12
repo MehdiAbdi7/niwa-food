@@ -1,6 +1,7 @@
 import { model, Model, Schema } from "mongoose";
 import { IUser, IUserMethods } from "../types/models/user.js";
 import bcrypt from "bcrypt";
+import { STORES } from "../config/stores.js";
 
 type UserModel = Model<IUser, Record<string, never>, IUserMethods>;
 
@@ -17,11 +18,11 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
     },
     tel: { type: String, required: true },
     password: { type: String, required: true, select: false },
-    role: { type: String, enum: ["admin", "staff"], default: "staff" },
+    role: { type: String, enum: ["admin", "employee"], default: "employee" },
+    store: { type: String, enum: STORES },
   },
   {
     timestamps: true,
-    // Include virtuals when converting to JSON (API responses) or plain objects
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   },
@@ -29,6 +30,17 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
 
 userSchema.virtual("isAdmin").get(function () {
   return this.role === "admin";
+});
+
+// Garantit l'intégrité même si User.create() est appelé hors des routes
+// (scripts, migrations) : store obligatoire pour un employee, interdit pour un admin.
+userSchema.pre("validate", function () {
+  if (this.role === "employee" && !this.store) {
+    throw new Error("Un employé doit être rattaché à un magasin (store)");
+  }
+  if (this.role === "admin" && this.store) {
+    this.store = undefined;
+  }
 });
 
 userSchema.pre("save", async function () {

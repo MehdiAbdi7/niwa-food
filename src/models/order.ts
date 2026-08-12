@@ -1,5 +1,6 @@
 import { model, Model, Schema } from "mongoose";
 import { IOrder } from "../types/models/order.js";
+import { STORES } from "../config/stores.js";
 
 type OrderModel = Model<IOrder>;
 
@@ -42,6 +43,7 @@ const orderSchema = new Schema<IOrder, OrderModel>(
       enum: ["pending", "ready", "out_for_delivery", "completed", "cancelled"],
       default: "pending",
     },
+    store: { type: String, enum: STORES, required: true },
     dailyNumber: { type: Number, required: true },
     table: { type: Schema.Types.ObjectId, ref: "Table" },
     client: {

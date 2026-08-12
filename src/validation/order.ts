@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Types } from "mongoose";
+import { STORES } from "../config/stores.js";
 
 const objectIdSchema = z.string().refine((val) => Types.ObjectId.isValid(val), {
   message: "ID invalide",
@@ -18,7 +19,8 @@ const orderItemSchema = z.object({
   isKidsMenu: z.boolean().default(false),
 });
 
-// Chaque type de commande a ses propres champs client obligatoires
+// dine_in : le magasin est dérivé de la table côté serveur, jamais du client
+// (voir order.controller.ts::createOrder)
 const dineInSchema = z.object({
   type: z.literal("dine_in"),
   table: objectIdSchema,
@@ -28,8 +30,10 @@ const dineInSchema = z.object({
   remark: z.string().trim().optional(),
 });
 
+// takeaway/delivery : le client choisit explicitement son magasin
 const takeawaySchema = z.object({
   type: z.literal("takeaway"),
+  store: z.enum(STORES),
   client: z.object({
     fullName: z.string().trim().min(1, "Le nom est requis"),
     phone: z.string().trim().min(10, "Le téléphone est requis"),
@@ -38,6 +42,7 @@ const takeawaySchema = z.object({
 
 const deliverySchema = z.object({
   type: z.literal("delivery"),
+  store: z.enum(STORES),
   client: z.object({
     fullName: z.string().trim().min(1, "Le nom est requis"),
     phone: z.string().trim().min(10, "Le téléphone est requis"),
@@ -75,10 +80,17 @@ export const setDeliveryFeeSchema = z.object({
   deliveryFee: z.number().nonnegative("Le prix de livraison doit être positif"),
 });
 
-// --- Historique / Stats (drill-down année -> mois -> jour -> liste) ---
+// Réservé admin : reset du compteur journalier d'un magasin précis
+export const resetCounterSchema = z.object({
+  store: z.enum(STORES),
+});
 
+// --- Historique / Stats (drill-down année -> mois -> jour -> liste) ---
+// store optionnel : un employee sera de toute façon forcé sur son propre
+// magasin dans le contrôleur ; un admin peut filtrer sur un magasin ou tout voir.
 const historyTypeSchema = z.object({
   type: z.enum(["dine_in", "takeaway", "delivery"]),
+  store: z.enum(STORES).optional(),
 });
 
 export const historyYearsQuerySchema = historyTypeSchema;
@@ -101,6 +113,7 @@ export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type AddItemsToOrderInput = z.infer<typeof addItemsToOrderSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
 export type SetDeliveryFeeInput = z.infer<typeof setDeliveryFeeSchema>;
+export type ResetCounterInput = z.infer<typeof resetCounterSchema>;
 export type HistoryYearsQuery = z.infer<typeof historyYearsQuerySchema>;
 export type HistoryMonthsQuery = z.infer<typeof historyMonthsQuerySchema>;
 export type HistoryDaysQuery = z.infer<typeof historyDaysQuerySchema>;

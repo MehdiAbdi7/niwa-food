@@ -2,7 +2,12 @@ import { NextFunction, Request, Response } from "express";
 import { Table } from "../models/table.js";
 import { StatusCodes } from "http-status-codes";
 import { errorResponse, successResponse } from "../utils/responseFormatter.js";
-import { CreateTableInput, UpdateTableInput } from "../validation/table.js";
+import { getStoreFilter, assertSameStore } from "../utils/storeScope.js";
+import {
+  CreateTableInput,
+  UpdateTableInput,
+  PublicTablesQuery,
+} from "../validation/table.js";
 
 export async function createTable(
   req: Request<{}, {}, CreateTableInput>,
@@ -22,13 +27,35 @@ export async function createTable(
   }
 }
 
+// Réservé au staff/admin (dashboard) : détail complet, scoped par magasin
 export async function getTables(
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) {
   try {
-    const tables = await Table.find().sort({ tableN: 1 });
+    const filter = getStoreFilter(req.user!);
+    const tables = await Table.find(filter).sort({ tableN: 1 });
+    successResponse(res, tables, "Tables récupérées avec succès");
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Public (page de commande client) : juste de quoi choisir une table dans SON
+// magasin. Pas de currentOrderId ni d'autres champs internes exposés.
+export async function getPublicTables(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { store } = req.query as unknown as PublicTablesQuery;
+
+    const tables = await Table.find({ store })
+      .select("tableN status")
+      .sort({ tableN: 1 });
+
     successResponse(res, tables, "Tables récupérées avec succès");
   } catch (error) {
     next(error);
@@ -41,17 +68,18 @@ export async function updateTable(
   next: NextFunction,
 ) {
   try {
-    const updated = await Table.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!updated) {
+    const table = await Table.findById(req.params.id);
+    if (!table) {
       errorResponse(res, "Table introuvable", StatusCodes.NOT_FOUND);
       return;
     }
 
-    successResponse(res, updated, "Table mise à jour avec succès");
+    assertSameStore(req.user!, table.store);
+
+    Object.assign(table, req.body);
+    await table.save();
+
+    successResponse(res, table, "Table mise à jour avec succès");
   } catch (error) {
     next(error);
   }
@@ -69,6 +97,8 @@ export async function deleteTable(
       errorResponse(res, "Table introuvable", StatusCodes.NOT_FOUND);
       return;
     }
+
+    assertSameStore(req.user!, table.store);
 
     // On empêche la suppression d'une table encore occupée par une commande en cours
     if (table.status === "occupied") {

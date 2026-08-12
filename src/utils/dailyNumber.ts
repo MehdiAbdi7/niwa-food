@@ -1,8 +1,9 @@
 import { Counter } from "../models/counter.js";
+import { Store } from "../config/stores.js";
 
-export async function getNextOrderNumber(): Promise<number> {
+export async function getNextOrderNumber(store: Store): Promise<number> {
   const counter = await Counter.findOneAndUpdate(
-    { key: "orderCounter" },
+    { key: `orderCounter:${store}` },
     { $inc: { value: 1 } },
     { new: true, upsert: true },
   );
@@ -10,9 +11,9 @@ export async function getNextOrderNumber(): Promise<number> {
   return counter.value;
 }
 
-export async function resetOrderCounter(): Promise<number> {
+export async function resetOrderCounter(store: Store): Promise<number> {
   const counter = await Counter.findOneAndUpdate(
-    { key: "orderCounter" },
+    { key: `orderCounter:${store}` },
     { $set: { value: 0 } },
     { new: true, upsert: true },
   );

@@ -2,16 +2,32 @@ import { Router } from "express";
 import {
   createTable,
   getTables,
+  getPublicTables,
   updateTable,
   deleteTable,
 } from "../controllers/table.controller.js";
 import { CheckAuth, isAdmin } from "../middlewares/auth.js";
-import { validateBodySchema } from "../middlewares/validations.js";
-import { createTableSchema, updateTableSchema } from "../validation/table.js";
+import {
+  validateBodySchema,
+  validateQuerySchema,
+} from "../middlewares/validations.js";
+import {
+  createTableSchema,
+  updateTableSchema,
+  publicTablesQuerySchema,
+} from "../validation/table.js";
 
 const tableRouter = Router();
 
-tableRouter.get("/", getTables);
+// Route statique publique AVANT les routes protégées (même convention que order.routes.ts)
+tableRouter.get(
+  "/public",
+  validateQuerySchema(publicTablesQuerySchema),
+  getPublicTables,
+);
+
+tableRouter.get("/", CheckAuth, getTables);
+
 tableRouter.post(
   "/",
   CheckAuth,

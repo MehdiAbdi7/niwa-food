@@ -6,6 +6,7 @@ import { IOrder } from "../types/models/order.js";
 import { StatusCodes } from "http-status-codes";
 import { resolveOrderItemsPricing } from "../utils/pricing.js";
 import { io } from "../config/socket.js";
+import { getStoreFilter, assertSameStore } from "../utils/storeScope.js";
 import {
   errorResponse,
   successResponse,
@@ -16,6 +17,7 @@ import {
   CreateOrderInput,
   SetDeliveryFeeInput,
   UpdateOrderStatusInput,
+  ResetCounterInput,
   HistoryYearsQuery,
   HistoryMonthsQuery,
   HistoryDaysQuery,
@@ -35,7 +37,7 @@ export async function createOrder(
     // Le client ne fournit que des IDs et des choix, jamais de prix.
     const resolvedItems = await resolveOrderItemsPricing(data.items);
 
-    // Cas dine_in : on vérifie si la table a déjà une commande en cours
+    // Cas dine_in : le magasin est TOUJOURS dérivé de la table, jamais du client
     if (data.type === "dine_in") {
       const table = await Table.findById(data.table);
       if (!table) {
@@ -43,19 +45,21 @@ export async function createOrder(
         return;
       }
 
+      const store = table.store;
+
+      // Fusion auto : la table est occupée par une commande pending ou ready -> on ajoute les items dedans
       if (table.currentOrderId) {
         const existingOrder = await Order.findOne({
           _id: table.currentOrderId,
           status: { $in: ["pending", "ready"] },
         });
 
-        // Fusion auto : la table est occupée par une commande pending ou ready -> on ajoute les items dedans
         if (existingOrder) {
           existingOrder.items.push(...resolvedItems);
           if (data.remark) existingOrder.remark = data.remark;
           await existingOrder.save();
 
-          io.to("dashboard").emit("order_items_added", existingOrder);
+          io.to(`dashboard:${store}`).emit("order_items_added", existingOrder);
 
           successResponse(
             res,
@@ -67,9 +71,10 @@ export async function createOrder(
       }
 
       // Pas de commande en cours -> nouvelle commande + occupation de la table
-      const dailyNumber = await getNextOrderNumber();
+      const dailyNumber = await getNextOrderNumber(store);
       const newOrder = await Order.create({
         ...data,
+        store,
         items: resolvedItems,
         dailyNumber,
       });
@@ -77,7 +82,7 @@ export async function createOrder(
       table.status = "occupied";
       await table.save();
 
-      io.to("dashboard").emit("new_order", newOrder);
+      io.to(`dashboard:${store}`).emit("new_order", newOrder);
 
       successResponse(
         res,
@@ -88,15 +93,15 @@ export async function createOrder(
       return;
     }
 
-    // takeaway / delivery : toujours une commande indépendante
-    const dailyNumber = await getNextOrderNumber();
+    // takeaway / delivery : le magasin est choisi explicitement par le client
+    const dailyNumber = await getNextOrderNumber(data.store);
     const newOrder = await Order.create({
       ...data,
       items: resolvedItems,
       dailyNumber,
     });
 
-    io.to("dashboard").emit("new_order", newOrder);
+    io.to(`dashboard:${data.store}`).emit("new_order", newOrder);
 
     successResponse(
       res,
@@ -116,7 +121,7 @@ export async function getOrders(
 ) {
   try {
     const { status, type } = req.query;
-    const filter: Record<string, unknown> = {};
+    const filter: Record<string, unknown> = { ...getStoreFilter(req.user!) };
     if (status) filter.status = status;
     if (type) filter.type = type;
 
@@ -132,8 +137,6 @@ export async function getOrders(
 
 // Suppression physique d'une commande — réservé aux admins, et seulement
 // pour les commandes qui n'ont pas encore été traitées ou qui sont annulées.
-// Une commande ready/out_for_delivery/completed reste en base pour toujours
-// (traçabilité + intégrité des stats déjà calculées).
 export async function deleteOrder(
   req: Request<{ id: string }>,
   res: Response,
@@ -146,6 +149,8 @@ export async function deleteOrder(
       return;
     }
 
+    assertSameStore(req.user!, order.store);
+
     const deletableStatuses = ["pending", "cancelled"];
     if (!deletableStatuses.includes(order.status)) {
       errorResponse(
@@ -156,7 +161,6 @@ export async function deleteOrder(
       return;
     }
 
-    // Si la commande dine_in occupait encore une table, on la libère avant suppression
     if (order.type === "dine_in" && order.table) {
       await Table.updateOne(
         { _id: order.table, currentOrderId: order._id },
@@ -183,6 +187,9 @@ export async function getOrderById(
       errorResponse(res, "Commande introuvable", StatusCodes.NOT_FOUND);
       return;
     }
+
+    assertSameStore(req.user!, order.store);
+
     successResponse(res, order, "Commande récupérée avec succès");
   } catch (error) {
     next(error);
@@ -201,6 +208,8 @@ export async function addItemsToOrder(
       errorResponse(res, "Commande introuvable", StatusCodes.NOT_FOUND);
       return;
     }
+
+    assertSameStore(req.user!, order.store);
 
     if (order.status == "completed" || order.status == "cancelled") {
       errorResponse(
@@ -235,6 +244,8 @@ export async function setDeliveryFee(
       return;
     }
 
+    assertSameStore(req.user!, order.store);
+
     if (order.type !== "delivery") {
       errorResponse(
         res,
@@ -264,6 +275,8 @@ export async function updateOrderStatus(
       errorResponse(res, "Commande introuvable", StatusCodes.NOT_FOUND);
       return;
     }
+
+    assertSameStore(req.user!, order.store);
 
     const newStatus = req.body.status;
 
@@ -345,14 +358,14 @@ export async function trackOrder(
   }
 }
 
-// Reset manuel du compteur de commandes (action staff/admin, aucun déclenchement automatique)
+// Reset manuel du compteur de commandes d'UN magasin (action admin uniquement)
 export async function resetCounter(
-  req: Request,
+  req: Request<{}, {}, ResetCounterInput>,
   res: Response,
   next: NextFunction,
 ) {
   try {
-    const value = await resetOrderCounter();
+    const value = await resetOrderCounter(req.body.store);
     successResponse(res, { value }, "Compteur de commandes réinitialisé");
   } catch (error) {
     next(error);
@@ -361,16 +374,36 @@ export async function resetCounter(
 
 // --- Historique / Stats (drill-down année -> mois -> jour -> liste) ---
 
+// Un employee est toujours restreint à son magasin, même s'il tente de passer
+// un autre store en query. Un admin peut filtrer sur un magasin précis ou voir
+// l'ensemble (store absent du filtre).
+function resolveHistoryStoreFilter(
+  user: { role: string; store?: string },
+  requestedStore?: string,
+) {
+  if (user.role !== "admin") {
+    return { store: user.store };
+  }
+  return requestedStore ? { store: requestedStore } : {};
+}
+
 export async function getHistoryYears(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
   try {
-    const { type } = req.query as unknown as HistoryYearsQuery;
+    const { type, store } = req.query as unknown as HistoryYearsQuery;
 
     const results = await Order.aggregate([
-      { $match: { status: "completed", type, completedAt: { $ne: null } } },
+      {
+        $match: {
+          status: "completed",
+          type,
+          completedAt: { $ne: null },
+          ...resolveHistoryStoreFilter(req.user!, store),
+        },
+      },
       {
         $group: {
           _id: { $year: "$completedAt" },
@@ -394,7 +427,7 @@ export async function getHistoryMonths(
   next: NextFunction,
 ) {
   try {
-    const { type, year } = req.query as unknown as HistoryMonthsQuery;
+    const { type, year, store } = req.query as unknown as HistoryMonthsQuery;
 
     const results = await Order.aggregate([
       {
@@ -405,6 +438,7 @@ export async function getHistoryMonths(
             $gte: new Date(Date.UTC(year, 0, 1)),
             $lt: new Date(Date.UTC(year + 1, 0, 1)),
           },
+          ...resolveHistoryStoreFilter(req.user!, store),
         },
       },
       {
@@ -430,7 +464,7 @@ export async function getHistoryDays(
   next: NextFunction,
 ) {
   try {
-    const { type, year, month } = req.query as unknown as HistoryDaysQuery;
+    const { type, year, month, store } = req.query as unknown as HistoryDaysQuery;
 
     const results = await Order.aggregate([
       {
@@ -441,6 +475,7 @@ export async function getHistoryDays(
             $gte: new Date(Date.UTC(year, month - 1, 1)),
             $lt: new Date(Date.UTC(year, month, 1)),
           },
+          ...resolveHistoryStoreFilter(req.user!, store),
         },
       },
       {
@@ -466,7 +501,7 @@ export async function getHistoryOrders(
   next: NextFunction,
 ) {
   try {
-    const { type, year, month, day, page, limit } =
+    const { type, year, month, day, page, limit, store } =
       req.query as unknown as HistoryOrdersQuery;
 
     const dayStart = new Date(Date.UTC(year, month - 1, day));
@@ -476,6 +511,7 @@ export async function getHistoryOrders(
       status: "completed",
       type,
       completedAt: { $gte: dayStart, $lt: dayEnd },
+      ...resolveHistoryStoreFilter(req.user!, store),
     };
 
     const [orders, total] = await Promise.all([

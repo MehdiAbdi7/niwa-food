@@ -1,6 +1,12 @@
 import { z } from "zod/v4";
+import { STORES } from "../config/stores.js";
 
 const passwordRegex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9]).{8,}$/;
+
+const storeRule = {
+  message: "store est requis si role=employee, et doit être absent si role=admin",
+  path: ["store"] as const,
+};
 
 // LOGIN
 export const loginSchema = z.object({
@@ -8,19 +14,38 @@ export const loginSchema = z.object({
   password: z.string().regex(passwordRegex, "Password isn't strong enough"),
 });
 
-//REGISTER
-export const registerSchema = loginSchema.extend({
-  firstname: z.string().min(3).trim(),
-  lastname: z.string().min(1).trim(),
-  tel: z.string().min(10),
-});
+// REGISTER (créé par un admin depuis le dashboard)
+export const registerSchema = loginSchema
+  .extend({
+    firstname: z.string().min(3).trim(),
+    lastname: z.string().min(1).trim(),
+    tel: z.string().min(10),
+    role: z.enum(["admin", "employee"]).default("employee"),
+    store: z.enum(STORES).optional(),
+  })
+  .refine(
+    (data) =>
+      data.role === "employee"
+        ? data.store !== undefined
+        : data.store === undefined,
+    storeRule,
+  );
 
-//UPDATE ROLE BY ADMIN
-export const updateUserRoleSchema = z.object({
-  role: z.enum(["admin", "staff"]),
-});
+// UPDATE ROLE BY ADMIN
+export const updateUserRoleSchema = z
+  .object({
+    role: z.enum(["admin", "employee"]),
+    store: z.enum(STORES).optional(),
+  })
+  .refine(
+    (data) =>
+      data.role === "employee"
+        ? data.store !== undefined
+        : data.store === undefined,
+    storeRule,
+  );
 
-//UPDATE PROFILE INFO
+// UPDATE PROFILE INFO
 export const updateProfileSchema = z.object({
   firstname: z
     .string()

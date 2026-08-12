@@ -28,6 +28,7 @@ import {
   historyMonthsQuerySchema,
   historyDaysQuerySchema,
   historyOrdersQuerySchema,
+  resetCounterSchema,
 } from "../validation/order.js";
 import { createOrderLimiter } from "../middlewares/rateLimiters.js";
 
@@ -59,7 +60,13 @@ orderRouter.get(
   getHistoryOrders,
 );
 
-orderRouter.post("/counter/reset", CheckAuth, isAdmin, resetCounter);
+orderRouter.post(
+  "/counter/reset",
+  CheckAuth,
+  isAdmin,
+  validateBodySchema(resetCounterSchema),
+  resetCounter,
+);
 
 orderRouter.get("/:id/track", trackOrder);
 orderRouter.get("/", CheckAuth, getOrders);

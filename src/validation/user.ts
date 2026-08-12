@@ -4,8 +4,9 @@ import { STORES } from "../config/stores.js";
 const passwordRegex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9]).{8,}$/;
 
 const storeRule = {
-  message: "store est requis si role=employee, et doit être absent si role=admin",
-  path: ["store"] as const,
+  message:
+    "store est requis si role=employee, et doit être absent si role=admin",
+  path: ["store"],
 };
 
 // LOGIN

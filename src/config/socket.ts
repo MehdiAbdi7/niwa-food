@@ -26,7 +26,19 @@ export function initSocket(server: HttpServer) {
   // mais n'aura simplement pas accès aux rooms "dashboard:*".
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth?.token as string | undefined;
+      // Le token peut venir de plusieurs endroits selon le client :
+      // - handshake.auth.token (client officiel Socket.IO, notre frontend)
+      // - header Authorization "Bearer <token>" (pattern classique REST)
+      // - header Authorization contenant directement le token, sans préfixe
+      //   (certains outils de test comme Postman envoient le header brut)
+      const authHeader = socket.handshake.headers.authorization;
+      const tokenFromHeader = authHeader?.startsWith("Bearer ")
+        ? authHeader.split(" ")[1]
+        : authHeader;
+
+      const token =
+        (socket.handshake.auth?.token as string | undefined) ?? tokenFromHeader;
+
       if (!token) {
         return next();
       }

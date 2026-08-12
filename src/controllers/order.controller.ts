@@ -7,6 +7,7 @@ import { StatusCodes } from "http-status-codes";
 import { resolveOrderItemsPricing } from "../utils/pricing.js";
 import { io } from "../config/socket.js";
 import { getStoreFilter, assertSameStore } from "../utils/storeScope.js";
+import { Store } from "../config/stores.js";
 import {
   errorResponse,
   successResponse,
@@ -377,12 +378,16 @@ export async function resetCounter(
 // Un employee est toujours restreint à son magasin, même s'il tente de passer
 // un autre store en query. Un admin peut filtrer sur un magasin précis ou voir
 // l'ensemble (store absent du filtre).
+// NOTE: on type `store` en `Store` (pas `string`) pour matcher IOrder.store,
+// et on ne renvoie la clé `store` que si elle a une vraie valeur — jamais
+// `{ store: undefined }`, qui n'est pas équivalent à l'absence de la clé
+// pour Mongoose/TypeScript.
 function resolveHistoryStoreFilter(
-  user: { role: string; store?: string },
-  requestedStore?: string,
-) {
+  user: { role: string; store?: Store },
+  requestedStore?: Store,
+): { store?: Store } {
   if (user.role !== "admin") {
-    return { store: user.store };
+    return user.store ? { store: user.store } : {};
   }
   return requestedStore ? { store: requestedStore } : {};
 }
@@ -464,7 +469,8 @@ export async function getHistoryDays(
   next: NextFunction,
 ) {
   try {
-    const { type, year, month, store } = req.query as unknown as HistoryDaysQuery;
+    const { type, year, month, store } =
+      req.query as unknown as HistoryDaysQuery;
 
     const results = await Order.aggregate([
       {

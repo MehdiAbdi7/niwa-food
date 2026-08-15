@@ -21,10 +21,13 @@ export const loginLimiter = rateLimit({
   },
 });
 
-// Limiteur pour la création de commandes : route publique, mais on évite le spam/bot
+// Limiteur pour la création de commandes.
+// ATTENTION : tous les clients du restaurant passent par le même wifi, donc par
+// la même IP publique. Une limite basse bloquerait le service en heure de pointe.
+// La valeur ci-dessous vise le bot/spam, pas le débit réel d'un service.
 export const createOrderLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 20, // 20 commandes max par IP sur cette fenêtre
+  limit: 100,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   handler: (_req, res) => {

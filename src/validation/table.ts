@@ -18,10 +18,17 @@ export const updateTableSchema = z.object({
   currentOrderId: objectIdSchema.nullable().optional(),
 });
 
+// Dashboard : `store` sert uniquement à l'admin pour cibler un magasin.
+// Un employee reste forcé sur le sien, quoi qu'il envoie.
+export const tablesQuerySchema = z.object({
+  store: z.enum(STORES).optional(),
+});
+
 export const publicTablesQuerySchema = z.object({
   store: z.enum(STORES),
 });
 
 export type CreateTableInput = z.infer<typeof createTableSchema>;
 export type UpdateTableInput = z.infer<typeof updateTableSchema>;
+export type TablesQuery = z.infer<typeof tablesQuerySchema>;
 export type PublicTablesQuery = z.infer<typeof publicTablesQuerySchema>;

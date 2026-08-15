@@ -4,6 +4,7 @@ import {
   getTables,
   getPublicTables,
   updateTable,
+  freeTable,
   deleteTable,
 } from "../controllers/table.controller.js";
 import { CheckAuth, isAdmin } from "../middlewares/auth.js";
@@ -14,6 +15,7 @@ import {
 import {
   createTableSchema,
   updateTableSchema,
+  tablesQuerySchema,
   publicTablesQuerySchema,
 } from "../validation/table.js";
 
@@ -26,7 +28,15 @@ tableRouter.get(
   getPublicTables,
 );
 
-tableRouter.get("/", CheckAuth, getTables);
+tableRouter.get(
+  "/",
+  CheckAuth,
+  validateQuerySchema(tablesQuerySchema),
+  getTables,
+);
+
+// Accessible au staff : débloquer une table en salle ne doit pas dépendre de l'admin
+tableRouter.patch("/:id/free", CheckAuth, freeTable);
 
 tableRouter.post(
   "/",

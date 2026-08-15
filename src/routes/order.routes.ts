@@ -8,6 +8,8 @@ import {
   updateOrderStatus,
   trackOrder,
   resetCounter,
+  getCounters,
+  getServiceStats,
   deleteOrder,
   getHistoryYears,
   getHistoryMonths,
@@ -24,6 +26,8 @@ import {
   addItemsToOrderSchema,
   setDeliveryFeeSchema,
   updateOrderStatusSchema,
+  ordersQuerySchema,
+  storeScopeQuerySchema,
   historyYearsQuerySchema,
   historyMonthsQuerySchema,
   historyDaysQuerySchema,
@@ -34,7 +38,7 @@ import { createOrderLimiter } from "../middlewares/rateLimiters.js";
 
 const orderRouter = Router();
 
-// Routes statiques (historique + tracking + counter) AVANT les routes dynamiques /:id
+// Routes statiques (historique, service, stats, tracking) AVANT /:id
 orderRouter.get(
   "/history/years",
   CheckAuth,
@@ -60,17 +64,38 @@ orderRouter.get(
   getHistoryOrders,
 );
 
+orderRouter.get(
+  "/stats/service",
+  CheckAuth,
+  validateQuerySchema(storeScopeQuerySchema),
+  getServiceStats,
+);
+
+// Ouverture/clôture de service : accessible aux employés (sur leur magasin),
+// car c'est le staff en poste qui ouvre le service, pas l'admin.
+orderRouter.get(
+  "/counter",
+  CheckAuth,
+  validateQuerySchema(storeScopeQuerySchema),
+  getCounters,
+);
 orderRouter.post(
   "/counter/reset",
   CheckAuth,
-  isAdmin,
   validateBodySchema(resetCounterSchema),
   resetCounter,
 );
 
 orderRouter.get("/:id/track", trackOrder);
-orderRouter.get("/", CheckAuth, getOrders);
+
+orderRouter.get(
+  "/",
+  CheckAuth,
+  validateQuerySchema(ordersQuerySchema),
+  getOrders,
+);
 orderRouter.get("/:id", CheckAuth, getOrderById);
+
 orderRouter.post(
   "/",
   createOrderLimiter,

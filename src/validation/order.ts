@@ -6,6 +6,16 @@ const objectIdSchema = z.string().refine((val) => Types.ObjectId.isValid(val), {
   message: "ID invalide",
 });
 
+const orderStatusSchema = z.enum([
+  "pending",
+  "ready",
+  "out_for_delivery",
+  "completed",
+  "cancelled",
+]);
+
+const orderTypeSchema = z.enum(["dine_in", "takeaway", "delivery"]);
+
 const orderItemExtraSchema = z.object({
   extraId: objectIdSchema,
 });
@@ -38,6 +48,7 @@ const takeawaySchema = z.object({
     fullName: z.string().trim().min(1, "Le nom est requis"),
     phone: z.string().trim().min(10, "Le téléphone est requis"),
   }),
+  remark: z.string().trim().optional(),
 });
 
 const deliverySchema = z.object({
@@ -48,6 +59,7 @@ const deliverySchema = z.object({
     phone: z.string().trim().min(10, "Le téléphone est requis"),
     address: z.string().trim().min(1, "L'adresse est requise"),
   }),
+  remark: z.string().trim().optional(),
 });
 
 const commonSchema = z.object({
@@ -60,36 +72,49 @@ export const createOrderSchema = z.discriminatedUnion("type", [
   deliverySchema.extend(commonSchema.shape),
 ]);
 
-// Pour l'ajout manuel d'items à une commande takeaway/delivery existante (pending)
+// Pour l'ajout manuel d'items à une commande existante depuis le dashboard
 export const addItemsToOrderSchema = z.object({
   items: z.array(orderItemSchema).min(1, "Au moins un item est requis"),
 });
 
 export const updateOrderStatusSchema = z.object({
-  status: z.enum([
-    "pending",
-    "ready",
-    "out_for_delivery",
-    "completed",
-    "cancelled",
-  ]),
+  status: orderStatusSchema,
 });
 
-// Le staff fixe le prix de livraison manuellement quand la commande arrive (dashboard)
+// Le staff fixe le prix de livraison manuellement quand la commande arrive
 export const setDeliveryFeeSchema = z.object({
   deliveryFee: z.number().nonnegative("Le prix de livraison doit être positif"),
 });
 
-// Réservé admin : reset du compteur journalier d'un magasin précis
+// --- Liste des commandes (dashboard) ---
+// scope=active  -> uniquement les commandes encore à traiter (vue opérationnelle)
+// scope=service -> tout ce qui a été créé depuis l'ouverture du service courant
+// scope=all     -> aucune borne temporelle (recherche/debug, paginé)
+export const ordersQuerySchema = z.object({
+  status: orderStatusSchema.optional(),
+  type: orderTypeSchema.optional(),
+  store: z.enum(STORES).optional(),
+  scope: z.enum(["active", "service", "all"]).default("active"),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+});
+
+// --- Service (compteur) ---
+// `store` est optionnel : un employee est de toute façon ramené à son magasin,
+// et un admin sans `store` reçoit l'état des deux magasins.
+export const storeScopeQuerySchema = z.object({
+  store: z.enum(STORES).optional(),
+});
+
+// force : réservé admin, permet d'ouvrir un service malgré des commandes en cours
 export const resetCounterSchema = z.object({
-  store: z.enum(STORES),
+  store: z.enum(STORES).optional(),
+  force: z.boolean().default(false),
 });
 
 // --- Historique / Stats (drill-down année -> mois -> jour -> liste) ---
-// store optionnel : un employee sera de toute façon forcé sur son propre
-// magasin dans le contrôleur ; un admin peut filtrer sur un magasin ou tout voir.
 const historyTypeSchema = z.object({
-  type: z.enum(["dine_in", "takeaway", "delivery"]),
+  type: orderTypeSchema,
   store: z.enum(STORES).optional(),
 });
 
@@ -114,6 +139,8 @@ export type AddItemsToOrderInput = z.infer<typeof addItemsToOrderSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
 export type SetDeliveryFeeInput = z.infer<typeof setDeliveryFeeSchema>;
 export type ResetCounterInput = z.infer<typeof resetCounterSchema>;
+export type OrdersQuery = z.infer<typeof ordersQuerySchema>;
+export type StoreScopeQuery = z.infer<typeof storeScopeQuerySchema>;
 export type HistoryYearsQuery = z.infer<typeof historyYearsQuerySchema>;
 export type HistoryMonthsQuery = z.infer<typeof historyMonthsQuerySchema>;
 export type HistoryDaysQuery = z.infer<typeof historyDaysQuerySchema>;

@@ -32,39 +32,35 @@ export const registerSchema = loginSchema
     storeRule,
   );
 
-// UPDATE ROLE BY ADMIN
-export const updateUserRoleSchema = z
-  .object({
-    role: z.enum(["admin", "employee"]),
-    store: z.enum(STORES).optional(),
-  })
-  .refine(
-    (data) =>
-      data.role === "employee"
-        ? data.store !== undefined
-        : data.store === undefined,
-    storeRule,
-  );
+// UPDATE d'un utilisateur par un admin (infos + rôle + magasin).
+// Pas de `.refine` ici : tous les champs sont optionnels, donc la cohérence
+// role/store dépend de l'état en base — elle est validée par le hook
+// pre("validate") du modèle, seul endroit qui voit le document final.
+export const updateUserSchema = z.object({
+  firstname: z.string().min(3).max(30).trim().optional(),
+  lastname: z.string().min(1).max(30).trim().optional(),
+  email: z.email("Email must be valid").trim().toLowerCase().optional(),
+  tel: z.string().min(10).optional(),
+  role: z.enum(["admin", "employee"]).optional(),
+  store: z.enum(STORES).optional(),
+});
 
-// UPDATE PROFILE INFO
+// Filtres de la page Utilisateurs
+export const usersQuerySchema = z.object({
+  store: z.enum(STORES).optional(),
+  role: z.enum(["admin", "employee"]).optional(),
+});
+
+// UPDATE PROFILE INFO (par l'utilisateur lui-même)
 export const updateProfileSchema = z.object({
-  firstname: z
-    .string()
-    .min(3, "firstname must have at least 3 characters")
-    .max(30, "firstname must have at most 30 characters")
-    .trim()
-    .optional(),
-  lastname: z
-    .string()
-    .min(1, "lastname must have at least 1 characters")
-    .max(30, "lastname must have at most 30 characters")
-    .trim()
-    .optional(),
+  firstname: z.string().min(3).max(30).trim().optional(),
+  lastname: z.string().min(1).max(30).trim().optional(),
   email: z.email("Email must be valid").trim().toLowerCase().optional(),
   tel: z.string().min(10).optional(),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
-export type UpdateUserRoleInput = z.infer<typeof updateUserRoleSchema>;
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type UsersQuery = z.infer<typeof usersQuerySchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

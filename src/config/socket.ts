@@ -3,6 +3,7 @@ import type { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.js";
 import { STORES } from "./stores.js";
+import { isAllowedOrigin } from "./cors.js";
 
 export let io: Server;
 
@@ -16,7 +17,16 @@ interface AccessTokenPayload {
 export function initSocket(server: HttpServer) {
   io = new Server(server, {
     cors: {
-      origin: process.env.CORS_ORIGIN,
+      // Même politique que l'API REST (voir config/cors.ts) : sans ça, le
+      // socket serait rejeté sur les URLs de preview Vercel alors que les
+      // requêtes REST passent — panne du temps réel difficile à diagnostiquer.
+      origin: (origin, callback) => {
+        if (isAllowedOrigin(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error(`Origine non autorisée par CORS : ${origin}`));
+        }
+      },
       credentials: true,
     },
   });

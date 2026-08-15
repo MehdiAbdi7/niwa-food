@@ -225,8 +225,14 @@ export async function getOrderById(
   }
 }
 
-// Suppression physique — réservée aux admins, et seulement pour les commandes
-// qui n'ont pas encore été traitées ou qui sont annulées.
+// Statuts supprimables par un admin. "completed" est inclus volontairement :
+// l'historique n'étant qu'une agrégation sur `orders`, c'est le seul moyen de
+// retirer une commande erronée du chiffre d'affaires. Contrepartie assumée :
+// le CA devient modifiable, l'action est donc réservée aux admins (isAdmin
+// sur la route) et journalisée ci-dessous.
+const DELETABLE_STATUSES: OrderStatus[] = ["pending", "cancelled", "completed"];
+
+// Suppression physique — réservée aux admins.
 export async function deleteOrder(
   req: Request<{ id: string }>,
   res: Response,
@@ -241,13 +247,22 @@ export async function deleteOrder(
 
     assertSameStore(req.user!, order.store);
 
-    if (!["pending", "cancelled"].includes(order.status)) {
+    if (!DELETABLE_STATUSES.includes(order.status)) {
       errorResponse(
         res,
-        "Seules les commandes en attente ou annulées peuvent être supprimées",
+        "Cette commande ne peut pas être supprimée dans son état actuel",
         StatusCodes.BAD_REQUEST,
       );
       return;
+    }
+
+    // Trace minimale : supprimer une vente encaissée doit rester retrouvable
+    // dans les logs du serveur, même si le document disparaît de la base.
+    if (order.status === "completed") {
+      console.warn(
+        `[SUPPRESSION VENTE] commande #${order.dailyNumber} (${order.store}, ${order.totalPrice} DA) ` +
+          `supprimée par ${req.user!.email}`,
+      );
     }
 
     if (order.type === "dine_in" && order.table) {
@@ -395,7 +410,9 @@ export async function updateOrderStatus(
 
     // Le client qui suit sa commande est notifié aux étapes qui le concernent
     if (newStatus === "ready" || newStatus === "out_for_delivery") {
-      emitOrderTracking(order, newStatus);
+      const trackingEvent =
+        newStatus === "ready" ? "order_ready" : "order_out_for_delivery";
+      emitOrderTracking(order, trackingEvent);
     }
 
     successResponse(res, order, "Statut de la commande mis à jour");

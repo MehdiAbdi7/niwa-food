@@ -5,6 +5,7 @@ import morgan from "morgan";
 import authRouter from "./routes/auth.routes.js";
 import { StatusCodes } from "http-status-codes";
 import { errorResponse } from "./utils/responseFormatter.js";
+import { isAllowedOrigin } from "./config/cors.js";
 import menuCategoryRouter from "./routes/menuCategory.routes.js";
 import menuExtraTypeRouter from "./routes/menuExtraType.routes.js";
 import menuExtraRouter from "./routes/menuExtra.routes.js";
@@ -18,10 +19,19 @@ const app = express();
 // middlewares
 app.set("trust proxy", true);
 
+// CORS : liste d'origines (voir config/cors.ts) plutôt qu'une seule valeur —
+// le front a au minimum une URL en local et une en production, plus les
+// previews Vercel qui changent à chaque déploiement.
 app.use(
   cors({
     credentials: true,
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origine non autorisée par CORS : ${origin}`));
+      }
+    },
   }),
 );
 

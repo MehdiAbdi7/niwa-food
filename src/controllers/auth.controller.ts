@@ -3,7 +3,16 @@ import { User } from "../models/user.js";
 import jwt from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
 import { errorResponse, successResponse } from "../utils/responseFormatter.js";
-import { UpdateUserInput, UsersQuery, UpdateProfileInput } from "../validation/user.js";
+import {
+  AUTH_COOKIE_NAME,
+  authCookieOptions,
+  clearAuthCookieOptions,
+} from "../config/cookies.js";
+import {
+  UpdateUserInput,
+  UsersQuery,
+  UpdateProfileInput,
+} from "../validation/user.js";
 
 export async function login(req: Request, res: Response, next: NextFunction) {
   const { password, email } = req.body;
@@ -11,13 +20,21 @@ export async function login(req: Request, res: Response, next: NextFunction) {
   try {
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
-      errorResponse(res, "Email ou mot de passe invalide", StatusCodes.UNAUTHORIZED);
+      errorResponse(
+        res,
+        "Email ou mot de passe invalide",
+        StatusCodes.UNAUTHORIZED,
+      );
       return;
     }
 
     const valid = await user.comparePassword(password);
     if (!valid) {
-      errorResponse(res, "Email ou mot de passe invalide", StatusCodes.UNAUTHORIZED);
+      errorResponse(
+        res,
+        "Email ou mot de passe invalide",
+        StatusCodes.UNAUTHORIZED,
+      );
       return;
     }
 
@@ -27,10 +44,28 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       expiresIn: process.env.JWT_EXPIRES_IN || "7d",
     } as jwt.SignOptions);
 
+    // Canal principal : cookie httpOnly, illisible en JavaScript.
+    res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions);
+
     const userObj = user.toObject() as unknown as Record<string, unknown>;
     delete userObj.password;
 
+    // Le token reste dans le corps de la réponse le temps de la migration :
+    // Postman et toute version du front encore basée sur le header continuent
+    // de fonctionner. À retirer une fois le front entièrement passé au cookie
+    // (voir MIGRATION.md, étape 6).
     successResponse(res, userObj, "Connexion réussie", StatusCodes.OK, token);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// Avec un cookie httpOnly, le client ne peut plus effacer le token lui-même :
+// la déconnexion doit obligatoirement passer par le serveur.
+export async function logout(_req: Request, res: Response, next: NextFunction) {
+  try {
+    res.clearCookie(AUTH_COOKIE_NAME, clearAuthCookieOptions);
+    successResponse(res, null, "Déconnexion réussie");
   } catch (error) {
     next(error);
   }
@@ -50,7 +85,12 @@ export async function register(
     >;
     delete userObj.password;
 
-    successResponse(res, userObj, "Compte créé avec succès", StatusCodes.CREATED);
+    successResponse(
+      res,
+      userObj,
+      "Compte créé avec succès",
+      StatusCodes.CREATED,
+    );
   } catch (error) {
     next(error);
   }

@@ -3,6 +3,7 @@ import { StatusCodes } from "http-status-codes";
 import { errorResponse } from "../utils/responseFormatter.js";
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.js";
+import { AUTH_COOKIE_NAME } from "../config/cookies.js";
 
 interface AccessTokenPayload {
   id: string;
@@ -11,40 +12,57 @@ interface AccessTokenPayload {
   exp?: number;
 }
 
+// Le header accepte deux formes : "Bearer <token>" (convention REST) et le
+// token brut (ce qu'envoie Postman quand on colle la valeur telle quelle).
+// L'ancienne implémentation faisait split(" ")[1] sans condition et renvoyait
+// undefined sur la seconde forme.
+function extractTokenFromHeader(header?: string): string | undefined {
+  if (!header) return undefined;
+
+  const [scheme, value] = header.split(" ");
+  if (scheme?.toLowerCase() === "bearer") return value;
+
+  return header;
+}
+
+// Le cookie prime sur le header : c'est le canal du navigateur, celui qui
+// porte la session réelle. Le header reste accepté pour Postman, les scripts
+// et les tests — aucune collection existante ne casse.
+export function extractToken(req: Request): string | undefined {
+  return (
+    req.cookies?.[AUTH_COOKIE_NAME] ??
+    extractTokenFromHeader(req.headers.authorization)
+  );
+}
+
 export async function CheckAuth(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
-    // Extract token from Authorization header
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      errorResponse(res, "No authorization header", StatusCodes.UNAUTHORIZED);
-      return;
-    }
+    const token = extractToken(req);
 
-    // extract the token
-    const token = authHeader.split(" ")[1];
     if (!token) {
-      errorResponse(res, "No token provided", StatusCodes.UNAUTHORIZED);
+      errorResponse(res, "Authentification requise", StatusCodes.UNAUTHORIZED);
       return;
     }
 
-    // Verify token
+    // Les erreurs de jwt.verify (signature invalide, token expiré) partent
+    // dans le catch puis dans le handler global d'app.ts, qui les traduit
+    // déjà en 401 avec un message adapté.
     const payload = jwt.verify(
       token,
       process.env.JWT_SECRET!,
     ) as AccessTokenPayload;
-    if (!payload) {
-      errorResponse(res, "Unverified token used", StatusCodes.UNAUTHORIZED);
-      return;
-    }
 
-    // Find user and attach to request
     const user = await User.findById(payload.id).select("-password");
     if (!user) {
-      errorResponse(res, "User not found or deleted", StatusCodes.UNAUTHORIZED);
+      errorResponse(
+        res,
+        "Compte introuvable ou supprimé",
+        StatusCodes.UNAUTHORIZED,
+      );
       return;
     }
 
@@ -58,11 +76,12 @@ export async function CheckAuth(
 export function isAdmin(req: Request, res: Response, next: NextFunction): void {
   if (req.user?.role === "admin") {
     next();
-  } else {
-    errorResponse(
-      res,
-      "You are not an admin, you can't access this route",
-      StatusCodes.FORBIDDEN,
-    );
+    return;
   }
+
+  errorResponse(
+    res,
+    "Accès réservé aux administrateurs",
+    StatusCodes.FORBIDDEN,
+  );
 }

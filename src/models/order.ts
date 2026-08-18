@@ -13,6 +13,21 @@ const orderItemExtraSchema = new Schema(
   { _id: false },
 );
 
+const orderFormulaSchema = new Schema(
+  {
+    formulaId: { type: String, required: true },
+    name: { type: String, required: true },
+    price: { type: Number, required: true, min: 0 },
+    pricingMode: {
+      type: String,
+      enum: ["fixed", "supplement"],
+      required: true,
+    },
+    includes: { type: [String], default: [] },
+  },
+  { _id: false },
+);
+
 const orderItemSchema = new Schema(
   {
     menuItemId: {
@@ -26,7 +41,7 @@ const orderItemSchema = new Schema(
     selectedExtras: { type: [orderItemExtraSchema], default: [] },
     excludedIngredients: { type: [String], default: [] },
     quantity: { type: Number, required: true, min: 1 },
-    isKidsMenu: { type: Boolean, default: false },
+    formula: { type: orderFormulaSchema, default: undefined },
   },
   { _id: false },
 );

@@ -2,39 +2,51 @@ import { Types } from "mongoose";
 import { Store } from "../../config/stores.js";
 
 export interface IOrderItemExtra {
-  extraId: Types.ObjectId; // ref MenuExtra
-  name: string; // snapshot du nom au moment de la commande
-  price: number; // snapshot du prix au moment de la commande
+  extraId: Types.ObjectId;
+  name: string;
+  price: number;
+}
+
+// Snapshot de la formule au moment de la commande — les choix du client sont
+// déjà résolus dans `includes`, la cuisine n'a pas à savoir ce qui était
+// imposé et ce qui était optionnel.
+export interface IOrderFormula {
+  formulaId: string;
+  name: string;
+  price: number;
+  pricingMode: "fixed" | "supplement";
+  includes: string[]; // ex: ["Frites", "Jus Rouiba"]
 }
 
 export interface IOrderItem {
-  menuItemId: Types.ObjectId; // ref MenuItem
-  name: string; // snapshot du nom du produit
-  variantSelected: Record<string, string>; // ex: { taille: "M", viande: "poulet" }
-  unitPrice: number; // snapshot du prix de CETTE variante au moment de la commande
+  menuItemId: Types.ObjectId;
+  name: string;
+  variantSelected: Record<string, string>;
+  // Prix unitaire final, formule déjà appliquée (extras exclus)
+  unitPrice: number;
   selectedExtras: IOrderItemExtra[];
   excludedIngredients: string[];
   quantity: number;
-  isKidsMenu?: boolean;
+  formula?: IOrderFormula;
 }
 
 export interface IOrderClient {
   fullName: string;
-  phone?: string; // requis pour takeaway/delivery
-  address?: string; // requis pour delivery
+  phone?: string;
+  address?: string;
 }
 
 export interface IOrder {
   type: "dine_in" | "takeaway" | "delivery";
   status: "pending" | "ready" | "out_for_delivery" | "completed" | "cancelled";
   store: Store;
-  dailyNumber: number; // numéro de commande unique par jour ET par magasin
-  table?: Types.ObjectId; // ref Table, requis si type=dine_in
+  dailyNumber: number;
+  table?: Types.ObjectId;
   client: IOrderClient;
   items: IOrderItem[];
   remark?: string;
-  deliveryFee?: number; // requis si type=delivery
-  totalPrice: number; // calculé automatiquement (pre-save hook), inclut deliveryFee
+  deliveryFee?: number;
+  totalPrice: number;
   completedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;

@@ -1,18 +1,14 @@
 import { Types } from "mongoose";
 import { MenuItem } from "../models/menuItem.js";
 import { MenuExtra } from "../models/menuExtra.js";
-import {
-  KIDS_MENU_PRICE,
-  KIDS_MENU_ALLOWED_CATEGORIES,
-} from "../config/constants.js";
-import { IOrderItem } from "../types/models/order.js";
+import { FORMULA_BY_ID, isFormulaEligible } from "../config/formulas.js";
+import { IOrderFormula, IOrderItem } from "../types/models/order.js";
 import { CreateOrderInput } from "../validation/order.js";
 
 function businessError(message: string, statusCode = 400) {
   return Object.assign(new Error(message), { statusCode });
 }
 
-// Compare deux combinations de variante (ex: { taille: "M", viande: "poulet" })
 function combinationsMatch(
   a: Record<string, string>,
   b: Record<string, string>,
@@ -51,32 +47,82 @@ export async function resolveOrderItemsPricing(
       throw businessError(`"${menuItem.name}" n'est plus disponible`);
     }
 
-    const variant = menuItem.variants.find((v) =>
-      combinationsMatch(
-        v.combination as Record<string, string>,
-        item.variantSelected,
-      ),
-    );
-    if (!variant) {
-      throw businessError(`Variante invalide pour "${menuItem.name}"`);
-    }
+    const categoryName = (menuItem.category as any)?.name as string | undefined;
 
-    let unitPrice = variant.price;
+    // Cherche la variante correspondant au choix du client.
+    // Isolé dans un helper car une formule "fixed" court-circuite cette étape.
+    const findVariant = () => {
+      const variant = menuItem.variants.find((v) =>
+        combinationsMatch(
+          v.combination as Record<string, string>,
+          item.variantSelected,
+        ),
+      );
+      if (!variant) {
+        throw businessError(`Variante invalide pour "${menuItem.name}"`);
+      }
+      return variant;
+    };
 
-    // Menu Kids : prix serveur forcé, après vérification de la catégorie autorisée
-    if (item.isKidsMenu) {
-      const categoryName = (menuItem.category as any)?.name as
-        | string
-        | undefined;
-      if (
-        !categoryName ||
-        !KIDS_MENU_ALLOWED_CATEGORIES.includes(categoryName)
-      ) {
+    let unitPrice: number;
+    let variantSelected: Record<string, string> = item.variantSelected;
+    let formulaSnapshot: IOrderFormula | undefined;
+    // Taille servant à résoudre les extras bySize. Une formule qui supprime la
+    // variante impose sa propre référence (un mini est facturé comme un M),
+    // sinon on retombe sur la taille réellement choisie.
+    let effectiveSize: string | undefined = item.variantSelected.taille;
+
+    if (item.formula) {
+      const formula = FORMULA_BY_ID.get(item.formula.formulaId);
+      if (!formula) {
+        throw businessError(`Formule inconnue (${item.formula.formulaId})`);
+      }
+
+      if (!isFormulaEligible(formula, categoryName)) {
         throw businessError(
-          `"${menuItem.name}" n'est pas éligible au Menu Kids (catégorie non autorisée)`,
+          `"${menuItem.name}" n'est pas éligible à la formule ${formula.name}`,
         );
       }
-      unitPrice = KIDS_MENU_PRICE;
+
+      // Chaque choix doit être présent ET faire partie des options prévues,
+      // sinon n'importe quelle valeur finirait imprimée sur le ticket cuisine.
+      const resolvedChoices = formula.choices.map((choice) => {
+        const picked = item.formula!.choices[choice.label];
+        if (!picked) {
+          throw businessError(
+            `Choix "${choice.label}" requis pour la formule ${formula.name}`,
+          );
+        }
+        if (!choice.options.includes(picked)) {
+          throw businessError(
+            `"${picked}" n'est pas un choix valide pour "${choice.label}"`,
+          );
+        }
+        return picked;
+      });
+
+      if (formula.pricingMode === "fixed") {
+        // Le prix de la formule remplace celui de la variante : on ne cherche
+        // même pas de variante, le produit est servi en format unique.
+        unitPrice = formula.price;
+        variantSelected = {};
+      } else {
+        unitPrice = findVariant().price + formula.price;
+      }
+
+      if (formula.extraSizeReference) {
+        effectiveSize = formula.extraSizeReference;
+      }
+
+      formulaSnapshot = {
+        formulaId: formula.id,
+        name: formula.name,
+        price: formula.price,
+        pricingMode: formula.pricingMode,
+        includes: [...formula.includedNames, ...resolvedChoices],
+      };
+    } else {
+      unitPrice = findVariant().price;
     }
 
     const selectedExtras = item.selectedExtras.map((selected) => {
@@ -92,14 +138,12 @@ export async function resolveOrderItemsPricing(
       if (extra.priceType === "fixed") {
         price = extra.price ?? 0;
       } else {
-        // bySize : on va chercher la taille dans le variant choisi par le client
-        const size = item.variantSelected.taille;
-        if (size !== "M" && size !== "L") {
+        if (effectiveSize !== "M" && effectiveSize !== "L") {
           throw businessError(
             `Impossible de déterminer le prix de l'extra "${extra.name}" (taille manquante ou invalide)`,
           );
         }
-        price = extra.pricesBySize?.[size] ?? 0;
+        price = extra.pricesBySize?.[effectiveSize] ?? 0;
       }
 
       return {
@@ -112,12 +156,12 @@ export async function resolveOrderItemsPricing(
     return {
       menuItemId: new Types.ObjectId(item.menuItemId),
       name: menuItem.name,
-      variantSelected: item.variantSelected,
+      variantSelected,
       unitPrice,
       selectedExtras,
       excludedIngredients: item.excludedIngredients,
       quantity: item.quantity,
-      isKidsMenu: item.isKidsMenu,
+      ...(formulaSnapshot ? { formula: formulaSnapshot } : {}),
     };
   });
 }

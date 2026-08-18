@@ -20,13 +20,20 @@ const orderItemExtraSchema = z.object({
   extraId: objectIdSchema,
 });
 
+// Le client n'envoie que l'identifiant de la formule et ses choix.
+// Prix, composition et éligibilité sont résolus côté serveur.
+const orderItemFormulaSchema = z.object({
+  formulaId: z.string().trim().min(1),
+  choices: z.record(z.string(), z.string()).default({}),
+});
+
 const orderItemSchema = z.object({
   menuItemId: objectIdSchema,
   variantSelected: z.record(z.string(), z.string()).default({}),
   selectedExtras: z.array(orderItemExtraSchema).default([]),
   excludedIngredients: z.array(z.string().trim()).default([]),
   quantity: z.number().int().min(1),
-  isKidsMenu: z.boolean().default(false),
+  formula: orderItemFormulaSchema.optional(),
 });
 
 // dine_in : le magasin est dérivé de la table côté serveur, jamais du client

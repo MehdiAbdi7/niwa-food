@@ -2,7 +2,13 @@ import mongoose from "mongoose";
 import dns from "node:dns";
 import { logger } from "./logger.js";
 
-dns.setServers(["8.8.8.8", "1.1.1.1"]);
+// Contournement d'un problème de résolution SRV en local : certains FAI ne
+// répondent pas correctement sur les enregistrements SRV de mongodb+srv, d'où
+// ces résolveurs publics forcés. Inutile en production (le DNS du conteneur
+// Render fonctionne), et l'écraser n'y ajouterait qu'un point de panne.
+if (process.env.NODE_ENV !== "production") {
+  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+}
 
 mongoose.set("debug", process.env.NODE_ENV === "development");
 

@@ -6,6 +6,16 @@ import { CounterState } from "./dailyNumber.js";
 
 type OrderDoc = HydratedDocument<IOrder>;
 
+// Événements poussés vers le client qui suit sa commande.
+// order_updated couvre tout ce qui change le contenu ou le montant sans
+// changer le statut : ajout d'articles par le staff, frais de livraison fixés.
+export type OrderTrackingEvent =
+  | "order_ready"
+  | "order_out_for_delivery"
+  | "order_completed"
+  | "order_cancelled"
+  | "order_updated";
+
 // Toute mutation d'une commande DOIT passer par ces helpers.
 // Sans diffusion, deux postes ouverts sur le même dashboard divergent
 // silencieusement (le poste B ne voit pas ce que le poste A vient de faire).
@@ -31,12 +41,16 @@ export function emitCounterReset(state: CounterState): void {
   io.to(`dashboard:${state.store}`).emit("counter_reset", state);
 }
 
-// Événements destinés au client public qui suit sa commande
+// Événements destinés au client public qui suit sa commande.
+// Le document complet n'est PAS envoyé : la room order:<id> est rejoignable
+// par quiconque connaît l'id, et le payload contiendrait le téléphone et
+// l'adresse du client. Le front ne reçoit qu'un signal, et refetche
+// GET /orders/:id/track, qui applique déjà la bonne projection.
 export function emitOrderTracking(
   order: OrderDoc,
-  event: "order_ready" | "order_out_for_delivery",
+  event: OrderTrackingEvent,
 ): void {
-  io.to(`order:${order._id}`).emit(event, order);
+  io.to(`order:${order._id}`).emit(event, { _id: order._id, event });
 }
 
 export type { Store };

@@ -40,6 +40,7 @@ import {
   emitOrderDeleted,
   emitCounterReset,
   emitOrderTracking,
+  type OrderTrackingEvent,
 } from "../utils/orderEvents.js";
 
 type OrderStatus = IOrder["status"];
@@ -55,6 +56,24 @@ const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   out_for_delivery: ["completed"],
   completed: [],
   cancelled: [],
+};
+
+// Champs exposés au client qui suit sa commande (route publique, sans auth).
+// Le détail chiffré est inclus : c'est ce que le client va payer, il doit le
+// voir, frais de livraison compris. Ce qui reste exclu est ce qui l'identifie
+// — téléphone et adresse : la room de suivi est ouverte à quiconque connaît
+// l'id, et un ObjectId peut circuler (capture d'écran, lien partagé).
+const TRACKING_FIELDS =
+  "type status store dailyNumber items remark deliveryFee totalPrice createdAt completedAt client.fullName";
+
+// Statut atteint -> événement poussé au client. Les quatre y sont : sans
+// "completed" ni "cancelled", un client annulé resterait indéfiniment sur
+// « en préparation », sans jamais rien comprendre.
+const TRACKING_EVENTS: Partial<Record<OrderStatus, OrderTrackingEvent>> = {
+  ready: "order_ready",
+  out_for_delivery: "order_out_for_delivery",
+  completed: "order_completed",
+  cancelled: "order_cancelled",
 };
 
 export async function createOrder(
@@ -93,6 +112,10 @@ export async function createOrder(
           await existingOrder.save();
 
           emitOrderUpdated(existingOrder);
+
+          // Quelqu'un suit peut-être déjà cette commande depuis son téléphone :
+          // son écran doit refléter le nouveau contenu et le nouveau total.
+          emitOrderTracking(existingOrder, "order_updated");
 
           successResponse(
             res,
@@ -275,6 +298,11 @@ export async function deleteOrder(
     await order.deleteOne();
     emitOrderDeleted(order);
 
+    // Le client suivait peut-être cette commande : le laisser sur un écran
+    // figé serait pire que lui dire qu'elle n'existe plus. Le refetch qui
+    // suivra renverra un 404, que la page de suivi sait afficher.
+    emitOrderTracking(order, "order_cancelled");
+
     successResponse(res, null, "Commande supprimée avec succès");
   } catch (error) {
     next(error);
@@ -312,6 +340,10 @@ export async function addItemsToOrder(
 
     emitOrderUpdated(order);
 
+    // Le total vient de changer : sans cet événement, le client verrait un
+    // montant périmé jusqu'au prochain rafraîchissement.
+    emitOrderTracking(order, "order_updated");
+
     successResponse(res, order, "Items ajoutés avec succès");
   } catch (error) {
     next(error);
@@ -346,6 +378,10 @@ export async function setDeliveryFee(
     await order.save(); // le pre("save") recalcule totalPrice avec le deliveryFee
 
     emitOrderUpdated(order);
+
+    // Le client voyait « livraison : à confirmer » — c'est maintenant un
+    // montant ferme, et c'est ce qu'il va devoir payer.
+    emitOrderTracking(order, "order_updated");
 
     successResponse(res, order, "Prix de livraison mis à jour");
   } catch (error) {
@@ -408,12 +444,10 @@ export async function updateOrderStatus(
     // Le dashboard doit voir le changement, quel que soit le poste à l'origine
     emitOrderUpdated(order);
 
-    // Le client qui suit sa commande est notifié aux étapes qui le concernent
-    if (newStatus === "ready" || newStatus === "out_for_delivery") {
-      const trackingEvent =
-        newStatus === "ready" ? "order_ready" : "order_out_for_delivery";
-      emitOrderTracking(order, trackingEvent);
-    }
+    // Le client qui suit sa commande est notifié à chaque étape qui le
+    // concerne — y compris les étapes terminales (voir TRACKING_EVENTS).
+    const trackingEvent = TRACKING_EVENTS[newStatus];
+    if (trackingEvent) emitOrderTracking(order, trackingEvent);
 
     successResponse(res, order, "Statut de la commande mis à jour");
   } catch (error) {
@@ -421,16 +455,15 @@ export async function updateOrderStatus(
   }
 }
 
-// Suivi public pour le client (sans authentification), infos limitées uniquement
+// Suivi public pour le client (sans authentification).
+// La projection est volontairement restreinte : voir TRACKING_FIELDS.
 export async function trackOrder(
   req: Request<{ id: string }>,
   res: Response,
   next: NextFunction,
 ) {
   try {
-    const order = await Order.findById(req.params.id).select(
-      "type status dailyNumber items.name items.quantity items.variantSelected createdAt",
-    );
+    const order = await Order.findById(req.params.id).select(TRACKING_FIELDS);
 
     if (!order) {
       errorResponse(res, "Commande introuvable", StatusCodes.NOT_FOUND);

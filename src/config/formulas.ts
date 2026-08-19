@@ -2,7 +2,10 @@ export type FormulaPricingMode = "fixed" | "supplement";
 
 export interface FormulaChoice {
   label: string; // ex: "Boisson"
-  options: string[];
+  // Les options ne sont plus figées ici : elles sont lues dans le menu, parmi
+  // les produits disponibles de cette catégorie. Ajouter une canette au menu
+  // suffit désormais à la proposer en formule, sans redéploiement.
+  fromCategoryName: string; // ex: "Canettes"
 }
 
 export interface Formula {
@@ -33,6 +36,8 @@ export const FORMULAS: Formula[] = [
       "Tacos Classique",
       "Tacos Signature",
     ],
+    // "Jus Rouiba" reste une chaîne libre : c'est un produit imposé, jamais
+    // choisi par le client, donc il n'a pas à référencer un MenuItem.
     includedNames: ["Frites", "Jus Rouiba"],
     choices: [],
     extraSizeReference: "M",
@@ -44,12 +49,8 @@ export const FORMULAS: Formula[] = [
     price: 250,
     eligibleCategoryNames: ["Burgers", "Burgers Signature"],
     includedNames: ["Frites"],
-    choices: [
-      {
-        label: "Boisson",
-        options: ["Coca", "Fanta", "Sprite", "Hamoud Boualem", "Eau minérale"],
-      },
-    ],
+    // Canettes uniquement : les bouteilles ne sont pas servies en menu.
+    choices: [{ label: "Boisson", fromCategoryName: "Canettes" }],
   },
 ];
 

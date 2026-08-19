@@ -11,7 +11,9 @@ async function generateQRCode() {
     process.exit(1);
   }
 
-  const targetUrl = `${frontendUrl}/order`;
+  // /commande, pas /order : la route du front est (public)/commande/page.tsx.
+  // Tout QR déjà imprimé pointe vers un 404 et est à réimprimer.
+  const targetUrl = `${frontendUrl}/commande`;
   const outputPath = "qrcode-commande.png";
 
   try {

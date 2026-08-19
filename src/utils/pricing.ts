@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { MenuItem } from "../models/menuItem.js";
 import { MenuExtra } from "../models/menuExtra.js";
+import { MenuCategory } from "../models/menuCategory.js";
 import { FORMULA_BY_ID, isFormulaEligible } from "../config/formulas.js";
 import { IOrderFormula, IOrderItem } from "../types/models/order.js";
 import { CreateOrderInput } from "../validation/order.js";
@@ -19,6 +20,65 @@ function combinationsMatch(
   return aKeys.every((key) => a[key] === b[key]);
 }
 
+// Noms de catégories dont on aura besoin pour valider les choix de formule.
+// Calculé AVANT toute requête : le .map principal est synchrone, il ne peut
+// pas aller chercher les options au coup par coup.
+function collectChoiceCategoryNames(
+  items: CreateOrderInput["items"],
+): Set<string> {
+  const names = new Set<string>();
+
+  for (const item of items) {
+    if (!item.formula) continue;
+
+    const formula = FORMULA_BY_ID.get(item.formula.formulaId);
+    if (!formula) continue; // formule inconnue -> rejetée plus bas, message précis
+
+    for (const choice of formula.choices) {
+      names.add(choice.fromCategoryName);
+    }
+  }
+
+  return names;
+}
+
+// Options réellement commandables, par nom de catégorie.
+// Un Set de noms suffit : la vérification dans le .map devient un simple test
+// d'appartenance, et c'est le nom qui part dans le snapshot de la commande.
+async function loadChoiceOptions(
+  categoryNames: Set<string>,
+): Promise<Map<string, Set<string>>> {
+  const optionsByCategory = new Map<string, Set<string>>();
+  if (categoryNames.size === 0) return optionsByCategory;
+
+  const categories = await MenuCategory.find({
+    name: { $in: [...categoryNames] },
+  });
+  if (categories.length === 0) return optionsByCategory;
+
+  // available: true filtré ici, pas dans le .map : une canette en rupture ne
+  // doit tout simplement pas exister comme option.
+  const drinkItems = await MenuItem.find({
+    category: { $in: categories.map((category) => category._id) },
+    available: true,
+  }).select("name category");
+
+  const categoryNameById = new Map(
+    categories.map((category) => [category._id.toString(), category.name]),
+  );
+
+  for (const category of categories) {
+    optionsByCategory.set(category.name, new Set());
+  }
+
+  for (const drink of drinkItems) {
+    const name = categoryNameById.get(drink.category.toString());
+    if (name) optionsByCategory.get(name)!.add(drink.name);
+  }
+
+  return optionsByCategory;
+}
+
 export async function resolveOrderItemsPricing(
   items: CreateOrderInput["items"],
 ): Promise<IOrderItem[]> {
@@ -29,9 +89,10 @@ export async function resolveOrderItemsPricing(
     ),
   ];
 
-  const [menuItems, extras] = await Promise.all([
+  const [menuItems, extras, choiceOptions] = await Promise.all([
     MenuItem.find({ _id: { $in: menuItemIds } }).populate("category"),
     MenuExtra.find({ _id: { $in: extraIds } }),
+    loadChoiceOptions(collectChoiceCategoryNames(items)),
   ]);
 
   const menuItemById = new Map(menuItems.map((mi) => [mi._id.toString(), mi]));
@@ -84,8 +145,9 @@ export async function resolveOrderItemsPricing(
         );
       }
 
-      // Chaque choix doit être présent ET faire partie des options prévues,
-      // sinon n'importe quelle valeur finirait imprimée sur le ticket cuisine.
+      // Chaque choix doit être présent ET correspondre à un produit réellement
+      // disponible de la catégorie prévue, sinon n'importe quelle valeur
+      // finirait imprimée sur le ticket cuisine.
       const resolvedChoices = formula.choices.map((choice) => {
         const picked = item.formula!.choices[choice.label];
         if (!picked) {
@@ -93,11 +155,24 @@ export async function resolveOrderItemsPricing(
             `Choix "${choice.label}" requis pour la formule ${formula.name}`,
           );
         }
-        if (!choice.options.includes(picked)) {
+
+        const options = choiceOptions.get(choice.fromCategoryName);
+
+        // Catégorie absente ou entièrement en rupture : la formule ne peut pas
+        // être servie. Message explicite plutôt qu'un "choix invalide"
+        // trompeur, car ici c'est le menu qui est mal configuré, pas le client.
+        if (!options || options.size === 0) {
+          throw businessError(
+            `Aucune option disponible pour "${choice.label}" (catégorie ${choice.fromCategoryName})`,
+          );
+        }
+
+        if (!options.has(picked)) {
           throw businessError(
             `"${picked}" n'est pas un choix valide pour "${choice.label}"`,
           );
         }
+
         return picked;
       });
 
@@ -119,6 +194,8 @@ export async function resolveOrderItemsPricing(
         name: formula.name,
         price: formula.price,
         pricingMode: formula.pricingMode,
+        // Nom figé à la commande : renommer ou retirer une canette plus tard
+        // ne réécrit pas l'historique.
         includes: [...formula.includedNames, ...resolvedChoices],
       };
     } else {

@@ -43,8 +43,6 @@ function collectChoiceCategoryNames(
 }
 
 // Options réellement commandables, par nom de catégorie.
-// Un Set de noms suffit : la vérification dans le .map devient un simple test
-// d'appartenance, et c'est le nom qui part dans le snapshot de la commande.
 async function loadChoiceOptions(
   categoryNames: Set<string>,
 ): Promise<Map<string, Set<string>>> {
@@ -56,8 +54,6 @@ async function loadChoiceOptions(
   });
   if (categories.length === 0) return optionsByCategory;
 
-  // available: true filtré ici, pas dans le .map : une canette en rupture ne
-  // doit tout simplement pas exister comme option.
   const drinkItems = await MenuItem.find({
     category: { $in: categories.map((category) => category._id) },
     available: true,
@@ -77,6 +73,60 @@ async function loadChoiceOptions(
   }
 
   return optionsByCategory;
+}
+
+/** Tarification d'un extra dans le contexte d'un produit donné. */
+interface ExtraContext {
+  groupLabel: string;
+  singleChoice: boolean;
+  priceType?: "fixed" | "bySize";
+  price?: number;
+  pricesBySize?: { M: number; L: number };
+}
+
+/**
+ * Index des extras que CE produit autorise, avec leur tarification locale.
+ *
+ * Deux rôles, et le premier est une correction de sécurité : jusqu'ici aucune
+ * vérification n'était faite entre l'extra demandé et le produit. Un client
+ * pouvait joindre n'importe quel extraId à n'importe quel article — un
+ * gratinage sur une canette, par exemple. `availableExtras` était déclaré sur
+ * le modèle mais n'était lu nulle part côté serveur.
+ *
+ * Le repli sur availableExtras couvre les produits pas encore migrés : le
+ * groupe y est alors nommé "Suppléments", sans contrainte de choix unique.
+ */
+function buildExtraContext(menuItem: {
+  extraGroups?: { label: string; singleChoice: boolean; options: any[] }[];
+  availableExtras?: Types.ObjectId[];
+}): Map<string, ExtraContext> {
+  const context = new Map<string, ExtraContext>();
+
+  const groups = menuItem.extraGroups ?? [];
+
+  if (groups.length > 0) {
+    for (const group of groups) {
+      for (const option of group.options) {
+        context.set(option.extra.toString(), {
+          groupLabel: group.label,
+          singleChoice: group.singleChoice,
+          ...(option.priceType ? { priceType: option.priceType } : {}),
+          ...(option.price !== undefined ? { price: option.price } : {}),
+          ...(option.pricesBySize ? { pricesBySize: option.pricesBySize } : {}),
+        });
+      }
+    }
+    return context;
+  }
+
+  for (const extraId of menuItem.availableExtras ?? []) {
+    context.set(extraId.toString(), {
+      groupLabel: "Suppléments",
+      singleChoice: false,
+    });
+  }
+
+  return context;
 }
 
 export async function resolveOrderItemsPricing(
@@ -110,8 +160,6 @@ export async function resolveOrderItemsPricing(
 
     const categoryName = (menuItem.category as any)?.name as string | undefined;
 
-    // Cherche la variante correspondant au choix du client.
-    // Isolé dans un helper car une formule "fixed" court-circuite cette étape.
     const findVariant = () => {
       const variant = menuItem.variants.find((v) =>
         combinationsMatch(
@@ -128,9 +176,6 @@ export async function resolveOrderItemsPricing(
     let unitPrice: number;
     let variantSelected: Record<string, string> = item.variantSelected;
     let formulaSnapshot: IOrderFormula | undefined;
-    // Taille servant à résoudre les extras bySize. Une formule qui supprime la
-    // variante impose sa propre référence (un mini est facturé comme un M),
-    // sinon on retombe sur la taille réellement choisie.
     let effectiveSize: string | undefined = item.variantSelected.taille;
 
     if (item.formula) {
@@ -145,9 +190,6 @@ export async function resolveOrderItemsPricing(
         );
       }
 
-      // Chaque choix doit être présent ET correspondre à un produit réellement
-      // disponible de la catégorie prévue, sinon n'importe quelle valeur
-      // finirait imprimée sur le ticket cuisine.
       const resolvedChoices = formula.choices.map((choice) => {
         const picked = item.formula!.choices[choice.label];
         if (!picked) {
@@ -158,9 +200,6 @@ export async function resolveOrderItemsPricing(
 
         const options = choiceOptions.get(choice.fromCategoryName);
 
-        // Catégorie absente ou entièrement en rupture : la formule ne peut pas
-        // être servie. Message explicite plutôt qu'un "choix invalide"
-        // trompeur, car ici c'est le menu qui est mal configuré, pas le client.
         if (!options || options.size === 0) {
           throw businessError(
             `Aucune option disponible pour "${choice.label}" (catégorie ${choice.fromCategoryName})`,
@@ -177,8 +216,6 @@ export async function resolveOrderItemsPricing(
       });
 
       if (formula.pricingMode === "fixed") {
-        // Le prix de la formule remplace celui de la variante : on ne cherche
-        // même pas de variante, le produit est servi en format unique.
         unitPrice = formula.price;
         variantSelected = {};
       } else {
@@ -194,13 +231,16 @@ export async function resolveOrderItemsPricing(
         name: formula.name,
         price: formula.price,
         pricingMode: formula.pricingMode,
-        // Nom figé à la commande : renommer ou retirer une canette plus tard
-        // ne réécrit pas l'historique.
         includes: [...formula.includedNames, ...resolvedChoices],
       };
     } else {
       unitPrice = findVariant().price;
     }
+
+    const extraContext = buildExtraContext(menuItem);
+    // Compte par groupe à choix unique : le front l'empêche déjà, mais le
+    // backend ne doit jamais faire confiance au front.
+    const pickedBySingleChoiceGroup = new Map<string, string>();
 
     const selectedExtras = item.selectedExtras.map((selected) => {
       const extra = extraById.get(selected.extraId);
@@ -211,16 +251,39 @@ export async function resolveOrderItemsPricing(
         throw businessError(`Extra "${extra.name}" n'est plus disponible`);
       }
 
+      const context = extraContext.get(selected.extraId);
+      if (!context) {
+        throw businessError(
+          `L'extra "${extra.name}" n'est pas proposé sur "${menuItem.name}"`,
+        );
+      }
+
+      if (context.singleChoice) {
+        const already = pickedBySingleChoiceGroup.get(context.groupLabel);
+        if (already) {
+          throw businessError(
+            `Un seul choix possible pour "${context.groupLabel}" sur "${menuItem.name}" (${already} déjà sélectionné)`,
+          );
+        }
+        pickedBySingleChoiceGroup.set(context.groupLabel, extra.name);
+      }
+
+      // La surcharge du produit prime sur le catalogue : c'est elle qui rend
+      // un Gouda facturable au forfait ici et par taille là.
+      const priceType = context.priceType ?? extra.priceType;
+      const fixedPrice = context.price ?? extra.price;
+      const sizePrices = context.pricesBySize ?? extra.pricesBySize;
+
       let price: number;
-      if (extra.priceType === "fixed") {
-        price = extra.price ?? 0;
+      if (priceType === "fixed") {
+        price = fixedPrice ?? 0;
       } else {
         if (effectiveSize !== "M" && effectiveSize !== "L") {
           throw businessError(
             `Impossible de déterminer le prix de l'extra "${extra.name}" (taille manquante ou invalide)`,
           );
         }
-        price = extra.pricesBySize?.[effectiveSize] ?? 0;
+        price = sizePrices?.[effectiveSize] ?? 0;
       }
 
       return {

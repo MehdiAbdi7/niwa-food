@@ -35,6 +35,9 @@ export async function getMenuItems(
     const items = await MenuItem.find()
       .populate("category")
       .populate("availableExtras")
+      // Le front a besoin du nom et de la tarification catalogue de chaque
+      // extra pour afficher un prix quand le groupe ne le surcharge pas.
+      .populate("extraGroups.options.extra")
       .sort({ name: 1 });
     successResponse(res, items, "Produits récupérés avec succès");
   } catch (error) {

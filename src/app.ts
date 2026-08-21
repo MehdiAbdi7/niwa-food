@@ -14,6 +14,7 @@ import menuItemRouter from "./routes/menuItem.routes.js";
 import orderRouter from "./routes/order.routes.js";
 import tableRouter from "./routes/table.routes.js";
 import uploadRouter from "./routes/upload.routes.js";
+import storeRouter from "./routes/storeSettings.routes.js";
 
 const app = express();
 
@@ -43,7 +44,8 @@ app.use(helmet());
 
 if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
 
-// Doit précéder les routes : c'est lui qui remplit req.cookies, lu par CheckAuth.
+// Doit précéder les routes : c'est lui qui remplit req.cookies, lu par CheckAuth
+// et par optionalAuth.
 app.use(cookieParser());
 
 app.use(express.json({ limit: "10mb" }));
@@ -58,6 +60,8 @@ app.use("/menu-items", menuItemRouter);
 app.use("/tables", tableRouter);
 app.use("/orders", orderRouter);
 app.use("/upload", uploadRouter);
+// Ouverture/fermeture des commandes en ligne, par magasin.
+app.use("/stores", storeRouter);
 
 // route de test
 app.get("/health", (_req, res) => {
@@ -93,7 +97,8 @@ app.use(
       return;
     }
 
-    // Erreur métier custom avec statusCode explicite (ex: resolveOrderItemsPricing)
+    // Erreur métier custom avec statusCode explicite (ex: resolveOrderItemsPricing,
+    // assertStoreAcceptsOrders qui renvoie 503 sur un magasin fermé)
     if (err.statusCode && typeof err.statusCode === "number") {
       errorResponse(res, err.message, err.statusCode);
       return;

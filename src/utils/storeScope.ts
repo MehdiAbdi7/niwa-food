@@ -29,6 +29,27 @@ export function resolveAccessibleStores(
   return user.store ? [user.store] : [];
 }
 
+/**
+ * Magasin sur lequel une action d'administration doit s'appliquer.
+ *
+ * Un employee agit toujours sur SON magasin, quoi qu'il envoie dans le body :
+ * ouvrir le service ou fermer les commandes de l'autre restaurant depuis son
+ * poste n'aurait aucun sens. Un admin doit désigner sa cible explicitement —
+ * null signifie « impossible de trancher », à traduire en 400 par l'appelant.
+ *
+ * Partagé entre l'ouverture de service et la fermeture des commandes : deux
+ * actions, une seule règle d'autorisation. Cette fonction vivait auparavant en
+ * privé dans order.controller.ts ; une règle d'autorisation dupliquée est une
+ * règle qui finit par diverger.
+ */
+export function resolveTargetStore(
+  user: ScopableUser,
+  requested?: Store,
+): Store | null {
+  if (user.role === "admin") return requested ?? null;
+  return user.store ?? null;
+}
+
 // Vérifie qu'un employee ne peut agir que sur une ressource de son magasin
 export function assertSameStore(
   user: ScopableUser,

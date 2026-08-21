@@ -73,6 +73,49 @@ export async function CheckAuth(
   }
 }
 
+/**
+ * Identifie l'appelant SI c'est possible, sans jamais bloquer.
+ *
+ * Indispensable sur les routes partagées entre le public et le staff —
+ * typiquement POST /orders, utilisé aussi bien par la page /commande que par
+ * la prise de commande au comptoir. Sans ce middleware, req.user y est
+ * TOUJOURS undefined : le cookie part bien avec la requête, mais personne ne
+ * le décode, donc impossible de distinguer les deux publics.
+ *
+ * Un token absent, expiré ou forgé ne produit aucune erreur : la requête
+ * continue en anonyme. C'est toute la différence avec CheckAuth — ici,
+ * l'authentification est une information, pas une condition d'accès. Ne jamais
+ * s'en servir pour protéger une route : elle ne protège rien.
+ */
+export async function optionalAuth(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const token = extractToken(req);
+
+  if (!token) {
+    next();
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(
+      token,
+      process.env.JWT_SECRET!,
+    ) as AccessTokenPayload;
+
+    const user = await User.findById(payload.id).select("-password");
+    if (user) req.user = user;
+  } catch {
+    // Token expiré ou invalide : on poursuit en anonyme plutôt que de
+    // renvoyer 401. Un client dont la session staff a expiré doit pouvoir
+    // continuer à commander comme n'importe quel visiteur.
+  }
+
+  next();
+}
+
 export function isAdmin(req: Request, res: Response, next: NextFunction): void {
   if (req.user?.role === "admin") {
     next();

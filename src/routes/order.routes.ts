@@ -16,7 +16,7 @@ import {
   getHistoryDays,
   getHistoryOrders,
 } from "../controllers/order.controller.js";
-import { CheckAuth, isAdmin } from "../middlewares/auth.js";
+import { CheckAuth, isAdmin, optionalAuth } from "../middlewares/auth.js";
 import {
   validateBodySchema,
   validateQuerySchema,
@@ -96,9 +96,15 @@ orderRouter.get(
 );
 orderRouter.get("/:id", CheckAuth, getOrderById);
 
+// optionalAuth et NON CheckAuth : cette route reste publique (page /commande),
+// mais le contrôleur a besoin de savoir si l'appelant est un membre du staff —
+// c'est ce qui lui permet de prendre une commande au comptoir alors que les
+// commandes en ligne sont fermées. Sans ce middleware, req.user y serait
+// toujours undefined, cookie présent ou non.
 orderRouter.post(
   "/",
   createOrderLimiter,
+  optionalAuth,
   validateBodySchema(createOrderSchema),
   createOrder,
 );

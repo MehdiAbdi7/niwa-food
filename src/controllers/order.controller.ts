@@ -9,7 +9,12 @@ import {
   getStoreFilter,
   assertSameStore,
   resolveAccessibleStores,
+  resolveTargetStore,
 } from "../utils/storeScope.js";
+import {
+  assertStoreAcceptsOrders,
+  setStoreStatus,
+} from "../utils/storeStatus.js";
 import { Store } from "../config/stores.js";
 import {
   errorResponse,
@@ -40,6 +45,7 @@ import {
   emitOrderDeleted,
   emitCounterReset,
   emitOrderTracking,
+  emitStoreStatusChanged,
   type OrderTrackingEvent,
 } from "../utils/orderEvents.js";
 
@@ -84,6 +90,18 @@ export async function createOrder(
   try {
     const data = req.body;
 
+    // Le staff n'est JAMAIS bloqué par la fermeture des commandes en ligne :
+    // il continue de prendre les commandes au comptoir et au téléphone. C'est
+    // optionalAuth (voir order.routes.ts) qui renseigne req.user ici — sans
+    // lui, cette distinction serait impossible sur une route publique.
+    //
+    // Contrôle au plus tôt pour takeaway/delivery : le magasin est connu dès
+    // le body, inutile de résoudre toute la tarification pour rejeter ensuite.
+    // Le cas dine_in est vérifié plus bas, une fois la table résolue.
+    if (!req.user && data.type !== "dine_in") {
+      await assertStoreAcceptsOrders(data.store);
+    }
+
     // Résout les vrais prix/noms depuis la base (menuItem + variant + extras).
     // Le client ne fournit que des IDs et des choix, jamais de prix.
     const resolvedItems = await resolveOrderItemsPricing(data.items);
@@ -97,6 +115,12 @@ export async function createOrder(
       }
 
       const store = table.store;
+
+      // Vérifié ici et non plus haut : le magasin d'une commande sur place
+      // n'est connu qu'une fois la table chargée. Placé AVANT la fusion, pour
+      // qu'un client ne puisse pas se greffer sur la commande d'une table déjà
+      // ouverte alors que le restaurant a coupé les commandes en ligne.
+      if (!req.user) await assertStoreAcceptsOrders(store);
 
       // Fusion auto : la table est occupée par une commande pending ou ready
       // -> on ajoute les items dedans au lieu de créer un doublon
@@ -309,7 +333,10 @@ export async function deleteOrder(
   }
 }
 
-// Ajout manuel d'items par le staff, tant que la commande n'est pas terminée
+// Ajout manuel d'items par le staff, tant que la commande n'est pas terminée.
+// Volontairement PAS soumis à la fermeture du magasin : une commande passée à
+// 00h25 doit pouvoir être complétée, préparée et encaissée à 00h50. Seule la
+// création est verrouillée.
 export async function addItemsToOrder(
   req: Request<{ id: string }, {}, AddItemsToOrderInput>,
   res: Response,
@@ -478,16 +505,10 @@ export async function trackOrder(
 
 // --- Service (compteur de commandes) ---
 
-// Un employee ouvre/clôture le service de SON magasin ; l'admin doit préciser
-// lequel. Le service n'est pas calé sur la date calendaire car il déborde
-// régulièrement sur le lendemain.
-function resolveTargetStore(
-  user: { role: string; store?: Store },
-  requested?: Store,
-): Store | null {
-  if (user.role === "admin") return requested ?? null;
-  return user.store ?? null;
-}
+// resolveTargetStore vit désormais dans utils/storeScope.ts : la même règle
+// ("un employee agit sur son magasin, un admin doit préciser lequel") sert
+// aussi à la fermeture des commandes en ligne. Une règle d'autorisation
+// dupliquée est une règle qui finit par diverger.
 
 export async function getCounters(
   req: Request,
@@ -544,6 +565,14 @@ export async function resetCounter(
 
     const state = await resetOrderCounter(store);
     emitCounterReset(state);
+
+    // Ouvrir le service rouvre les commandes en ligne, et efface le message de
+    // fermeture de la veille. Deux interrupteurs indépendants finiraient par
+    // diverger, et personne ne remarque des commandes coupées avant que le
+    // téléphone ne cesse de sonner. La fermeture ponctuelle (rush, rupture)
+    // reste possible seule, via PATCH /stores/status.
+    const status = await setStoreStatus(store, true);
+    emitStoreStatusChanged(status);
 
     successResponse(res, state, "Nouveau service ouvert");
   } catch (error) {

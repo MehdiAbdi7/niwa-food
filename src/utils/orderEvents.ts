@@ -3,6 +3,9 @@ import { io } from "../config/socket.js";
 import { Store } from "../config/stores.js";
 import { IOrder } from "../types/models/order.js";
 import { CounterState } from "./dailyNumber.js";
+// import type : effacé à la compilation, donc aucun cycle d'import avec
+// storeStatus.ts même si celui-ci venait un jour à émettre des événements.
+import type { StoreStatus } from "./storeStatus.js";
 
 type OrderDoc = HydratedDocument<IOrder>;
 
@@ -39,6 +42,21 @@ export function emitOrderDeleted(order: OrderDoc): void {
 // pour qu'ils vident leur vue courante au lieu d'afficher l'ancien service.
 export function emitCounterReset(state: CounterState): void {
   io.to(`dashboard:${state.store}`).emit("counter_reset", state);
+}
+
+/**
+ * Ouverture/fermeture des commandes en ligne.
+ *
+ * Diffusé au dashboard du magasin concerné : sans ça, un second poste
+ * continuerait d'afficher « commandes ouvertes » alors que le premier vient de
+ * couper, et l'équipe se contredirait au téléphone.
+ *
+ * Le payload complet est envoyé (et non un simple signal comme pour le
+ * tracking) : il ne contient aucune donnée sensible, et la room dashboard:*
+ * exige déjà un JWT valide au handshake.
+ */
+export function emitStoreStatusChanged(status: StoreStatus): void {
+  io.to(`dashboard:${status.store}`).emit("store_status_changed", status);
 }
 
 // Événements destinés au client public qui suit sa commande.

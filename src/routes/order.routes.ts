@@ -11,10 +11,10 @@ import {
   getCounters,
   getServiceStats,
   deleteOrder,
+  getHistory,
   getHistoryYears,
   getHistoryMonths,
   getHistoryDays,
-  getHistoryOrders,
 } from "../controllers/order.controller.js";
 import { CheckAuth, isAdmin, optionalAuth } from "../middlewares/auth.js";
 import {
@@ -28,17 +28,37 @@ import {
   updateOrderStatusSchema,
   ordersQuerySchema,
   storeScopeQuerySchema,
+  historyQuerySchema,
   historyYearsQuerySchema,
   historyMonthsQuerySchema,
   historyDaysQuerySchema,
-  historyOrdersQuerySchema,
   resetCounterSchema,
 } from "../validation/order.js";
 import { createOrderLimiter } from "../middlewares/rateLimiters.js";
 
 const orderRouter = Router();
 
-// Routes statiques (historique, service, stats, tracking) AVANT /:id
+// Routes statiques (historique, service, stats, tracking) AVANT /:id —
+// sinon "/history" serait capturé par "/:id" et traité comme un ObjectId.
+
+/**
+ * Liste unifiée de l'historique. Le niveau de précision est déduit des
+ * paramètres fournis :
+ *   ?type=dine_in&year=2026                -> toute l'année
+ *   ?type=dine_in&year=2026&month=3        -> tout le mois
+ *   ?type=dine_in&year=2026&month=3&day=14 -> le jour
+ *
+ * Remplace l'ancien GET /history/orders, qui n'existait qu'au niveau jour.
+ */
+orderRouter.get(
+  "/history",
+  CheckAuth,
+  validateQuerySchema(historyQuerySchema),
+  getHistory,
+);
+
+// Agrégations qui alimentent les CASES du calendrier (compteurs et CA).
+// Elles ne renvoient aucune commande, seulement des totaux.
 orderRouter.get(
   "/history/years",
   CheckAuth,
@@ -56,12 +76,6 @@ orderRouter.get(
   CheckAuth,
   validateQuerySchema(historyDaysQuerySchema),
   getHistoryDays,
-);
-orderRouter.get(
-  "/history/orders",
-  CheckAuth,
-  validateQuerySchema(historyOrdersQuerySchema),
-  getHistoryOrders,
 );
 
 orderRouter.get(
@@ -99,8 +113,7 @@ orderRouter.get("/:id", CheckAuth, getOrderById);
 // optionalAuth et NON CheckAuth : cette route reste publique (page /commande),
 // mais le contrôleur a besoin de savoir si l'appelant est un membre du staff —
 // c'est ce qui lui permet de prendre une commande au comptoir alors que les
-// commandes en ligne sont fermées. Sans ce middleware, req.user y serait
-// toujours undefined, cookie présent ou non.
+// commandes en ligne sont fermées.
 orderRouter.post(
   "/",
   createOrderLimiter,

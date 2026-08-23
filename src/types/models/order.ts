@@ -41,6 +41,16 @@ export interface IOrder {
   status: "pending" | "ready" | "out_for_delivery" | "completed" | "cancelled";
   store: Store;
   dailyNumber: number;
+  /**
+   * Journée commerciale d'appartenance, normalisée à minuit UTC.
+   *
+   * Dérivée de l'heure d'OUVERTURE du service, pas de `createdAt` ni de
+   * `completedAt` : une commande encaissée à 00h20 appartient au service de la
+   * veille (voir utils/serviceDate.ts). C'est l'unique axe temporel de
+   * l'historique — ne jamais y substituer `completedAt`, sous peine de
+   * réintroduire le décalage de fin de service.
+   */
+  serviceDate: Date;
   table?: Types.ObjectId;
   client: IOrderClient;
   items: IOrderItem[];

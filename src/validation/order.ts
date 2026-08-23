@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { Types } from "mongoose";
 import { STORES } from "../config/stores.js";
+import { ORDER_TYPES } from "../config/orderTypes.js";
+import { getDaysInMonth } from "../utils/serviceDate.js";
 
 const objectIdSchema = z.string().refine((val) => Types.ObjectId.isValid(val), {
   message: "ID invalide",
@@ -14,7 +16,7 @@ const orderStatusSchema = z.enum([
   "cancelled",
 ]);
 
-const orderTypeSchema = z.enum(["dine_in", "takeaway", "delivery"]);
+const orderTypeSchema = z.enum(ORDER_TYPES);
 
 const orderItemExtraSchema = z.object({
   extraId: objectIdSchema,
@@ -119,15 +121,24 @@ export const resetCounterSchema = z.object({
   force: z.boolean().default(false),
 });
 
-// --- Historique / Stats (drill-down année -> mois -> jour -> liste) ---
-const historyTypeSchema = z.object({
-  type: orderTypeSchema,
+/* ------------------------------------------------------------------ */
+/*  Historique                                                         */
+/* ------------------------------------------------------------------ */
+
+// Agrégations qui alimentent le CALENDRIER (compteurs par case). Elles ne
+// renvoient jamais de commandes, seulement des totaux — d'où l'absence de
+// pagination : douze mois ou trente et un jours tiennent dans une réponse.
+const historyBaseSchema = z.object({
+  // OPTIONNEL = « Tous les types ». Le contrôleur le traduit alors en
+  // `$in: ORDER_TYPES` plutôt qu'en absence de clé — voir
+  // resolveHistoryTypeFilter, et le commentaire sur l'index dans models/order.ts.
+  type: orderTypeSchema.optional(),
   store: z.enum(STORES).optional(),
 });
 
-export const historyYearsQuerySchema = historyTypeSchema;
+export const historyYearsQuerySchema = historyBaseSchema;
 
-export const historyMonthsQuerySchema = historyTypeSchema.extend({
+export const historyMonthsQuerySchema = historyBaseSchema.extend({
   year: z.coerce.number().int().min(2000).max(2100),
 });
 
@@ -135,11 +146,53 @@ export const historyDaysQuerySchema = historyMonthsQuerySchema.extend({
   month: z.coerce.number().int().min(1).max(12),
 });
 
-export const historyOrdersQuerySchema = historyDaysQuerySchema.extend({
-  day: z.coerce.number().int().min(1).max(31),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-});
+/**
+ * LISTE unifiée des commandes de l'historique.
+ *
+ * Un seul endpoint pour les trois niveaux de précision, le niveau étant déduit
+ * des paramètres présents :
+ *   ?year=2026              -> toute l'année
+ *   ?year=2026&month=3      -> tout le mois
+ *   ?year=2026&month=3&day=14 -> le jour
+ *
+ * Trois contrôleurs quasi identiques à une borne de date près auraient
+ * divergé à la première évolution (ajout du tri, de la recherche...).
+ */
+export const historyQuerySchema = historyBaseSchema
+  .extend({
+    year: z.coerce.number().int().min(2000).max(2100),
+    month: z.coerce.number().int().min(1).max(12).optional(),
+    day: z.coerce.number().int().min(1).max(31).optional(),
+
+    // Numéro de commande ou nom du client. Borné : au-delà, ce n'est plus une
+    // recherche mais une tentative de faire travailler le serveur pour rien.
+    search: z.string().trim().max(60).optional(),
+
+    sortBy: z.enum(["date", "amount", "number"]).default("date"),
+    sortOrder: z.enum(["asc", "desc"]).default("desc"),
+
+    page: z.coerce.number().int().min(1).default(1),
+    // max 100 : `skip` devient coûteux sur de grands décalages, et une page de
+    // 500 commandes n'est de toute façon lue par personne.
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .refine((data) => data.day === undefined || data.month !== undefined, {
+    message: "`month` est requis lorsque `day` est fourni",
+    path: ["month"],
+  })
+  .refine(
+    (data) =>
+      data.day === undefined ||
+      data.month === undefined ||
+      data.day <= getDaysInMonth(data.year, data.month),
+    {
+      // Sans ce contrôle, un ?month=2&day=31 produirait une plage sur le 3 mars
+      // (Date.UTC reporte le débordement) et renverrait silencieusement les
+      // commandes d'un autre jour.
+      message: "Ce jour n'existe pas dans le mois demandé",
+      path: ["day"],
+    },
+  );
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type AddItemsToOrderInput = z.infer<typeof addItemsToOrderSchema>;
@@ -151,4 +204,4 @@ export type StoreScopeQuery = z.infer<typeof storeScopeQuerySchema>;
 export type HistoryYearsQuery = z.infer<typeof historyYearsQuerySchema>;
 export type HistoryMonthsQuery = z.infer<typeof historyMonthsQuerySchema>;
 export type HistoryDaysQuery = z.infer<typeof historyDaysQuerySchema>;
-export type HistoryOrdersQuery = z.infer<typeof historyOrdersQuerySchema>;
+export type HistoryQuery = z.infer<typeof historyQuerySchema>;

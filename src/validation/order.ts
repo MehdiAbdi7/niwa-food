@@ -115,6 +115,20 @@ export const setDeliveryPersonSchema = z.object({
   deliveryPerson: objectIdSchema.nullable(),
 });
 
+/**
+ * Recherche publique d'une commande par son numéro du jour.
+ *
+ * `dailyNumber` seul ne désigne rien : il repart à 1 à chaque service et
+ * n'est unique que PAR MAGASIN. D'où le couple obligatoire — et le contrôleur
+ * ajoute une troisième borne, le statut, pour lever l'ambiguïté entre deux
+ * services (voir lookupOrder).
+ */
+export const lookupOrderQuerySchema = z.object({
+  store: z.enum(STORES),
+  // Borné haut : au-delà, ce n'est plus un numéro de commande mais un test.
+  dailyNumber: z.coerce.number().int().min(1).max(9999),
+});
+
 // Le staff fixe le prix de livraison manuellement quand la commande arrive
 export const setDeliveryFeeSchema = z.object({
   deliveryFee: z.number().nonnegative("Le prix de livraison doit être positif"),
@@ -224,6 +238,7 @@ export type AddItemsToOrderInput = z.infer<typeof addItemsToOrderSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
 export type SetDeliveryPersonInput = z.infer<typeof setDeliveryPersonSchema>;
 export type SetDeliveryFeeInput = z.infer<typeof setDeliveryFeeSchema>;
+export type LookupOrderQuery = z.infer<typeof lookupOrderQuerySchema>;
 export type ResetCounterInput = z.infer<typeof resetCounterSchema>;
 export type OrdersQuery = z.infer<typeof ordersQuerySchema>;
 export type StoreScopeQuery = z.infer<typeof storeScopeQuerySchema>;

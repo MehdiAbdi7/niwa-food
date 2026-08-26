@@ -18,6 +18,7 @@ import {
   getHistoryDays,
   getMyDeliveries,
   markOrderDelivered,
+  lookupOrder,
 } from "../controllers/order.controller.js";
 import {
   CheckAuth,
@@ -42,8 +43,12 @@ import {
   historyMonthsQuerySchema,
   historyDaysQuerySchema,
   resetCounterSchema,
+  lookupOrderQuerySchema,
 } from "../validation/order.js";
-import { createOrderLimiter } from "../middlewares/rateLimiters.js";
+import {
+  createOrderLimiter,
+  lookupOrderLimiter,
+} from "../middlewares/rateLimiters.js";
 
 const orderRouter = Router();
 
@@ -128,6 +133,24 @@ orderRouter.post(
  * liste vide, puisqu'aucune course ne lui est assignée.
  */
 orderRouter.get("/my-deliveries", CheckAuth, getMyDeliveries);
+
+/**
+ * Recherche publique par numéro de commande.
+ *
+ * STATIQUE, donc avant "/:id" — sinon "lookup" serait traité comme un
+ * ObjectId. Sans authentification : c'est précisément le client qui a perdu
+ * son lien de suivi.
+ *
+ * Le limiteur est indispensable ici : contrairement à /:id/track, protégé par
+ * l'imprévisibilité d'un ObjectId de 24 caractères, cette route se devine en
+ * deux paramètres (un magasin parmi deux, un numéro entre 1 et ~80).
+ */
+orderRouter.get(
+  "/lookup",
+  lookupOrderLimiter,
+  validateQuerySchema(lookupOrderQuerySchema),
+  lookupOrder,
+);
 
 orderRouter.get("/:id/track", trackOrder);
 

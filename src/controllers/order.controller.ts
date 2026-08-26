@@ -37,6 +37,7 @@ import {
   HistoryMonthsQuery,
   HistoryDaysQuery,
   HistoryQuery,
+  LookupOrderQuery,
 } from "../validation/order.js";
 import {
   issueOrderNumber,
@@ -805,6 +806,63 @@ export async function markOrderDelivered(
     emitDeliveryUpdated(req.user!._id.toString(), order._id.toString());
 
     successResponse(res, order, "Commande marquée comme livrée");
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Retrouve une commande EN COURS à partir de son numéro du jour.
+ *
+ * Route publique, sans authentification : c'est la porte d'entrée du client
+ * qui a fermé son onglet et n'a plus le lien de suivi.
+ *
+ * TROIS bornes, et aucune n'est superflue :
+ *   - `store` : le numéro 2 existe à Kouba ET à Chéraga, ce sont deux
+ *     commandes différentes
+ *   - `dailyNumber` : ce que le client a sous les yeux sur son ticket
+ *   - `status` actif : `dailyNumber` repart à 1 à chaque service, donc le
+ *     couple magasin+numéro désigne aussi celles d'hier et d'avant-hier. Le
+ *     statut lève l'ambiguïté — et au passage, un client ne cherche jamais à
+ *     suivre une commande de la semaine dernière.
+ *
+ * Le tri décroissant est un filet pour le cas d'un service rouvert de force
+ * par un admin, qui peut laisser des commandes actives du service précédent :
+ * on renvoie alors la plus récente, c'est-à-dire celle que le client attend.
+ *
+ * Ne renvoie QUE l'identifiant. Le front redirige ensuite vers
+ * /orders/:id/track, qui applique déjà sa projection — inutile d'exposer une
+ * seconde fois le contenu d'une commande, avec le risque d'oublier un champ.
+ */
+export async function lookupOrder(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { store, dailyNumber } = req.query as unknown as LookupOrderQuery;
+
+    const order = await Order.findOne({
+      store,
+      dailyNumber,
+      status: { $in: ACTIVE_STATUSES },
+    })
+      .select("_id")
+      .sort({ createdAt: -1 });
+
+    if (!order) {
+      // Message volontairement identique quel que soit le cas (numéro
+      // inexistant, mauvais magasin, commande déjà terminée) : distinguer les
+      // trois reviendrait à confirmer à un curieux qu'un numéro existe.
+      errorResponse(
+        res,
+        "Aucune commande en cours ne porte ce numéro dans ce restaurant",
+        StatusCodes.NOT_FOUND,
+      );
+      return;
+    }
+
+    successResponse(res, { _id: order._id }, "Commande trouvée");
   } catch (error) {
     next(error);
   }

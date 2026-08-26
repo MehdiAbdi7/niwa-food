@@ -52,6 +52,18 @@ export interface IOrder {
    */
   serviceDate: Date;
   table?: Types.ObjectId;
+  /**
+   * Livreur en charge de la course (ref: User, role "delivery").
+   *
+   * VOLONTAIREMENT OPTIONNEL. Le rendre obligatoire au passage en livraison
+   * bloquerait le service un soir où aucun livreur n'est enregistré, ou quand
+   * le patron livre lui-même — dans ces cas-là, le staff valide la course
+   * depuis le dashboard comme avant.
+   *
+   * C'est ce champ, et lui seul, qui détermine ce qu'un livreur voit :
+   * GET /orders/my-deliveries filtre dessus.
+   */
+  deliveryPerson?: Types.ObjectId;
   client: IOrderClient;
   items: IOrderItem[];
   remark?: string;

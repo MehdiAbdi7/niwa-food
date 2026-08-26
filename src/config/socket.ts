@@ -106,6 +106,11 @@ export function initSocket(server: HttpServer) {
       const user = socket.data.user;
       if (!user) return; // pas de JWT valide -> pas d'accès aux dashboards
 
+      // Un livreur possède un `store`, donc sans ce garde il tomberait dans la
+      // branche employee ci-dessous et recevrait TOUTES les commandes du
+      // magasin en temps réel — précisément ce qu'on lui interdit côté REST.
+      if (user.role === "delivery") return;
+
       if (user.role === "admin") {
         socket.join(STORES.map((store) => `dashboard:${store}`));
       } else if (user.store) {
@@ -113,6 +118,21 @@ export function initSocket(server: HttpServer) {
       }
 
       console.log(`${socket.id} a rejoint le(s) dashboard(s) (${user.role})`);
+    });
+
+    /**
+     * Room personnelle du livreur.
+     *
+     * Le nom de la room est dérivé du JWT, JAMAIS d'un paramètre client :
+     * accepter un id envoyé par le socket permettrait à n'importe qui d'écouter
+     * les courses d'un autre.
+     */
+    socket.on("join_delivery", () => {
+      const user = socket.data.user;
+      if (user?.role !== "delivery") return;
+
+      socket.join(`delivery:${user._id}`);
+      console.log(`${socket.id} a rejoint delivery:${user._id}`);
     });
 
     socket.on("join_order_tracking", (orderId: string) => {

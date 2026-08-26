@@ -1,7 +1,8 @@
 import { NextFunction, Request, Response } from "express";
-import { type QueryFilter } from "mongoose";
+import { Types, type QueryFilter } from "mongoose";
 import { Order } from "../models/order.js";
 import { Table } from "../models/table.js";
+import { User } from "../models/user.js";
 import { IOrder } from "../types/models/order.js";
 import { StatusCodes } from "http-status-codes";
 import { resolveOrderItemsPricing } from "../utils/pricing.js";
@@ -27,6 +28,7 @@ import {
   AddItemsToOrderInput,
   CreateOrderInput,
   SetDeliveryFeeInput,
+  SetDeliveryPersonInput,
   UpdateOrderStatusInput,
   ResetCounterInput,
   OrdersQuery,
@@ -48,6 +50,7 @@ import {
   emitCounterReset,
   emitOrderTracking,
   emitStoreStatusChanged,
+  emitDeliveryUpdated,
   type OrderTrackingEvent,
 } from "../utils/orderEvents.js";
 
@@ -95,6 +98,68 @@ const TRACKING_EVENTS: Partial<Record<OrderStatus, OrderTrackingEvent>> = {
   cancelled: "order_cancelled",
 };
 
+/* ------------------------------------------------------------------ */
+/*  Assignation d'un livreur                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Vérifie qu'un identifiant peut réellement porter une course.
+ *
+ * Deux contrôles, tous deux indispensables : sans le premier, le staff
+ * pourrait assigner n'importe quel compte (un employé, voire un admin) et
+ * lui ouvrir un écran livreur qu'il n'est pas censé avoir ; sans le second,
+ * un livreur de Kouba verrait l'adresse d'un client de Chéraga.
+ */
+async function assertAssignableDeliveryPerson(
+  deliveryPersonId: string,
+  orderStore: Store,
+): Promise<void> {
+  const person = await User.findById(deliveryPersonId).select("role store");
+
+  if (!person || person.role !== "delivery") {
+    throw Object.assign(new Error("Compte livreur introuvable"), {
+      statusCode: StatusCodes.NOT_FOUND,
+    });
+  }
+
+  if (person.store !== orderStore) {
+    throw Object.assign(
+      new Error("Ce livreur n'est pas rattaché au magasin de la commande"),
+      { statusCode: StatusCodes.BAD_REQUEST },
+    );
+  }
+}
+
+/**
+ * Prévient les livreurs concernés qu'une course a bougé.
+ *
+ * Prend des IDENTIFIANTS BRUTS, jamais le document. Deux raisons :
+ *   - lors d'une réassignation, celui qui perd la course doit la voir
+ *     disparaître de son écran, or son id n'est plus sur le document
+ *   - après un `populate("deliveryPerson")`, le champ n'est plus un ObjectId
+ *     mais un document User : `.toString()` y renvoie sa représentation
+ *     complète, pas l'identifiant. Le nom de la room serait faux, et la
+ *     notification partirait dans le vide sans lever la moindre erreur.
+ *
+ * Toujours capturer les ids AVANT d'appeler populate().
+ */
+function notifyDeliveryPersons(
+  orderId: string,
+  currentDeliveryPersonId: string | null,
+  previousDeliveryPersonId: string | null,
+): void {
+  if (currentDeliveryPersonId) {
+    emitDeliveryUpdated(currentDeliveryPersonId, orderId);
+  }
+
+  if (
+    previousDeliveryPersonId &&
+    previousDeliveryPersonId !== currentDeliveryPersonId
+  ) {
+    emitDeliveryUpdated(previousDeliveryPersonId, orderId);
+  }
+}
+
 export async function createOrder(
   req: Request<{}, {}, CreateOrderInput>,
   res: Response,
@@ -108,10 +173,15 @@ export async function createOrder(
     // optionalAuth (voir order.routes.ts) qui renseigne req.user ici — sans
     // lui, cette distinction serait impossible sur une route publique.
     //
+    // Un livreur connecté ne compte PAS comme staff ici : il n'a aucune raison
+    // de créer une commande, et le laisser passer contournerait la fermeture.
+    const isStaffCaller =
+      req.user?.role === "admin" || req.user?.role === "employee";
+
     // Contrôle au plus tôt pour takeaway/delivery : le magasin est connu dès
     // le body, inutile de résoudre toute la tarification pour rejeter ensuite.
     // Le cas dine_in est vérifié plus bas, une fois la table résolue.
-    if (!req.user && data.type !== "dine_in") {
+    if (!isStaffCaller && data.type !== "dine_in") {
       await assertStoreAcceptsOrders(data.store);
     }
 
@@ -133,7 +203,7 @@ export async function createOrder(
       // n'est connu qu'une fois la table chargée. Placé AVANT la fusion, pour
       // qu'un client ne puisse pas se greffer sur la commande d'une table déjà
       // ouverte alors que le restaurant a coupé les commandes en ligne.
-      if (!req.user) await assertStoreAcceptsOrders(store);
+      if (!isStaffCaller) await assertStoreAcceptsOrders(store);
 
       // Fusion auto : la table est occupée par une commande pending ou ready
       // -> on ajoute les items dedans au lieu de créer un doublon.
@@ -250,6 +320,9 @@ export async function getOrders(
     const [orders, total] = await Promise.all([
       Order.find(filter)
         .populate("table")
+        // Le nom du livreur doit apparaître sur la carte de commande : sans
+        // populate, le front n'aurait qu'un ObjectId à afficher.
+        .populate("deliveryPerson", "firstname lastname tel")
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -277,7 +350,10 @@ export async function getOrderById(
   next: NextFunction,
 ) {
   try {
-    const order = await Order.findById(req.params.id).populate("table");
+    const order = await Order.findById(req.params.id)
+      .populate("table")
+      .populate("deliveryPerson", "firstname lastname tel");
+
     if (!order) {
       errorResponse(res, "Commande introuvable", StatusCodes.NOT_FOUND);
       return;
@@ -338,6 +414,8 @@ export async function deleteOrder(
       );
     }
 
+    const previousDeliveryPerson = order.deliveryPerson?.toString() ?? null;
+
     await order.deleteOne();
     emitOrderDeleted(order);
 
@@ -345,6 +423,10 @@ export async function deleteOrder(
     // figé serait pire que lui dire qu'elle n'existe plus. Le refetch qui
     // suivra renverra un 404, que la page de suivi sait afficher.
     emitOrderTracking(order, "order_cancelled");
+
+    // Le livreur aussi : sans ça, il garderait une course fantôme à l'écran,
+    // avec un bouton « Livré » qui répondrait 404.
+    notifyDeliveryPersons(order._id.toString(), null, previousDeliveryPerson);
 
     successResponse(res, null, "Commande supprimée avec succès");
   } catch (error) {
@@ -390,6 +472,13 @@ export async function addItemsToOrder(
     // montant périmé jusqu'au prochain rafraîchissement.
     emitOrderTracking(order, "order_updated");
 
+    // Et le livreur encaisserait l'ancien montant, ce qui est pire.
+    notifyDeliveryPersons(
+      order._id.toString(),
+      order.deliveryPerson?.toString() ?? null,
+      null,
+    );
+
     successResponse(res, order, "Items ajoutés avec succès");
   } catch (error) {
     next(error);
@@ -429,7 +518,90 @@ export async function setDeliveryFee(
     // montant ferme, et c'est ce qu'il va devoir payer.
     emitOrderTracking(order, "order_updated");
 
+    // Le livreur encaisse ce montant : il doit voir le total à jour.
+    notifyDeliveryPersons(
+      order._id.toString(),
+      order.deliveryPerson?.toString() ?? null,
+      null,
+    );
+
     successResponse(res, order, "Prix de livraison mis à jour");
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * (Ré)assignation d'un livreur, hors changement de statut.
+ *
+ * Nécessaire parce que ALLOWED_TRANSITIONS interdit
+ * out_for_delivery -> out_for_delivery : sans cette route, une erreur de
+ * livreur serait irrattrapable une fois la commande partie.
+ *
+ * Réservée au staff (voir order.routes.ts) : un livreur ne se donne pas des
+ * courses tout seul, et ne s'en débarrasse pas non plus.
+ */
+export async function setDeliveryPerson(
+  req: Request<{ id: string }, {}, SetDeliveryPersonInput>,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      errorResponse(res, "Commande introuvable", StatusCodes.NOT_FOUND);
+      return;
+    }
+
+    assertSameStore(req.user!, order.store);
+
+    if (order.type !== "delivery") {
+      errorResponse(
+        res,
+        "Cette commande n'est pas une livraison",
+        StatusCodes.BAD_REQUEST,
+      );
+      return;
+    }
+
+    if (order.status === "completed" || order.status === "cancelled") {
+      errorResponse(
+        res,
+        "Cette commande est déjà terminée",
+        StatusCodes.BAD_REQUEST,
+      );
+      return;
+    }
+
+    const previousDeliveryPerson = order.deliveryPerson?.toString() ?? null;
+    const { deliveryPerson } = req.body;
+
+    if (deliveryPerson === null) {
+      order.deliveryPerson = undefined;
+    } else {
+      await assertAssignableDeliveryPerson(deliveryPerson, order.store);
+      order.deliveryPerson = new Types.ObjectId(deliveryPerson);
+    }
+
+    await order.save();
+
+    // Capturé AVANT populate : ensuite, le champ n'est plus un ObjectId.
+    const currentDeliveryPerson = order.deliveryPerson?.toString() ?? null;
+
+    await order.populate("deliveryPerson", "firstname lastname tel");
+
+    emitOrderUpdated(order);
+    notifyDeliveryPersons(
+      order._id.toString(),
+      currentDeliveryPerson,
+      previousDeliveryPerson,
+    );
+
+    successResponse(
+      res,
+      order,
+      deliveryPerson === null ? "Livreur retiré" : "Livreur assigné",
+    );
   } catch (error) {
     next(error);
   }
@@ -449,7 +621,7 @@ export async function updateOrderStatus(
 
     assertSameStore(req.user!, order.store);
 
-    const newStatus = req.body.status;
+    const { status: newStatus, deliveryPerson } = req.body;
 
     if (!ALLOWED_TRANSITIONS[order.status].includes(newStatus)) {
       errorResponse(
@@ -470,6 +642,29 @@ export async function updateOrderStatus(
       return;
     }
 
+    const previousDeliveryPerson = order.deliveryPerson?.toString() ?? null;
+
+    // Assignation en même temps que le passage en livraison : c'est un geste
+    // unique au comptoir (« celle-là, c'est Karim qui la prend »).
+    // `undefined` = clé absente du body, donc on ne touche à rien.
+    if (deliveryPerson !== undefined) {
+      if (newStatus !== "out_for_delivery") {
+        errorResponse(
+          res,
+          "Un livreur ne peut être assigné qu'au passage en livraison",
+          StatusCodes.BAD_REQUEST,
+        );
+        return;
+      }
+
+      if (deliveryPerson === null) {
+        order.deliveryPerson = undefined;
+      } else {
+        await assertAssignableDeliveryPerson(deliveryPerson, order.store);
+        order.deliveryPerson = new Types.ObjectId(deliveryPerson);
+      }
+    }
+
     order.status = newStatus;
 
     // On fige la date de vente réelle au moment du paiement (pas createdAt/updatedAt).
@@ -481,6 +676,11 @@ export async function updateOrderStatus(
     }
 
     await order.save();
+
+    // Capturé AVANT populate : ensuite, le champ n'est plus un ObjectId.
+    const currentDeliveryPerson = order.deliveryPerson?.toString() ?? null;
+
+    await order.populate("deliveryPerson", "firstname lastname tel");
 
     // La table n'est libérée qu'une fois la commande payée, pas juste "prête"
     if (order.type === "dine_in" && newStatus === "completed" && order.table) {
@@ -498,13 +698,119 @@ export async function updateOrderStatus(
     const trackingEvent = TRACKING_EVENTS[newStatus];
     if (trackingEvent) emitOrderTracking(order, trackingEvent);
 
+    // Le livreur voit la course apparaître (out_for_delivery) ou disparaître
+    // (completed / cancelled par le staff) de son écran, sans rien rafraîchir.
+    notifyDeliveryPersons(
+      order._id.toString(),
+      currentDeliveryPerson,
+      previousDeliveryPerson,
+    );
+
     successResponse(res, order, "Statut de la commande mis à jour");
   } catch (error) {
     next(error);
   }
 }
 
-// Suivi public pour le client (sans authentification).
+/* ------------------------------------------------------------------ */
+/*  Espace livreur                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Les courses en cours du livreur connecté.
+ *
+ * Trois filtres cumulés, et c'est le seul périmètre auquel un compte
+ * `delivery` a accès dans toute l'application :
+ *   - deliveryPerson : les siennes, jamais celles d'un collègue
+ *   - out_for_delivery : ni le passé, ni ce qui est encore en cuisine
+ *
+ * Le type n'a pas besoin d'être filtré : seule une commande `delivery` peut
+ * porter un `deliveryPerson` (voir setDeliveryPerson et updateOrderStatus).
+ *
+ * Pas de projection restrictive, contrairement à TRACKING_FIELDS : ici le
+ * téléphone et l'adresse du client sont précisément ce dont le livreur a le
+ * plus besoin.
+ *
+ * Tri ascendant : la course la plus ancienne d'abord, c'est l'ordre dans
+ * lequel il doit les faire.
+ */
+export async function getMyDeliveries(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const orders = await Order.find({
+      deliveryPerson: req.user!._id,
+      status: "out_for_delivery",
+    }).sort({ createdAt: 1 });
+
+    successResponse(res, orders, "Courses récupérées avec succès");
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Le livreur confirme la remise au client.
+ *
+ * Volontairement SANS middleware de rôle : c'est le contrôle d'appartenance
+ * ci-dessous qui protège la route. Un staff n'a pas besoin d'elle — il a déjà
+ * PATCH /:id/status, qui reste la porte de sortie quand le livreur oublie
+ * d'appuyer ou n'a plus de batterie.
+ *
+ * Une seule transition possible, dans un seul sens : impossible d'annuler,
+ * de remettre en préparation, ni de toucher aux prix.
+ */
+export async function markOrderDelivered(
+  req: Request<{ id: string }>,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      errorResponse(res, "Commande introuvable", StatusCodes.NOT_FOUND);
+      return;
+    }
+
+    if (order.deliveryPerson?.toString() !== req.user!._id.toString()) {
+      errorResponse(
+        res,
+        "Cette commande ne vous est pas assignée",
+        StatusCodes.FORBIDDEN,
+      );
+      return;
+    }
+
+    if (order.status !== "out_for_delivery") {
+      errorResponse(
+        res,
+        "Cette commande n'est pas en cours de livraison",
+        StatusCodes.BAD_REQUEST,
+      );
+      return;
+    }
+
+    order.status = "completed";
+    // C'est tout l'intérêt de la manœuvre : l'horodatage devient celui de la
+    // remise réelle, et non celui du moment où le staff y repense.
+    order.completedAt = new Date();
+    await order.save();
+
+    // Exactement les mêmes effets qu'un clic sur « Marquer livrée » depuis le
+    // dashboard : la commande part à l'historique, le CA se met à jour.
+    emitOrderUpdated(order);
+    emitOrderTracking(order, "order_completed");
+    emitDeliveryUpdated(req.user!._id.toString(), order._id.toString());
+
+    successResponse(res, order, "Commande marquée comme livrée");
+  } catch (error) {
+    next(error);
+  }
+}
+
+// --- Suivi public pour le client (sans authentification) ---
 // La projection est volontairement restreinte : voir TRACKING_FIELDS.
 export async function trackOrder(
   req: Request<{ id: string }>,
@@ -905,8 +1211,18 @@ export async function getHistory(
   next: NextFunction,
 ) {
   try {
-    const { type, store, year, month, day, search, sortBy, sortOrder, page, limit } =
-      req.query as unknown as HistoryQuery;
+    const {
+      type,
+      store,
+      year,
+      month,
+      day,
+      search,
+      sortBy,
+      sortOrder,
+      page,
+      limit,
+    } = req.query as unknown as HistoryQuery;
 
     const { start, end } = serviceDateRange(year, month, day);
 

@@ -86,8 +86,33 @@ export const addItemsToOrderSchema = z.object({
   items: z.array(orderItemSchema).min(1, "Au moins un item est requis"),
 });
 
+/**
+ * Changement de statut, avec assignation de livreur en option.
+ *
+ * `deliveryPerson` est accepté ICI pour que le passage en livraison et le
+ * choix du livreur tiennent en un seul appel — c'est un geste unique côté
+ * comptoir, en faire deux requêtes ouvrirait une fenêtre où la commande est
+ * partie sans que personne ne sache avec qui.
+ *
+ * Trois valeurs distinctes, et la nuance compte :
+ *   - absent  -> ne touche pas à l'assignation existante
+ *   - null    -> retire le livreur (course reprise par le staff)
+ *   - un id   -> assigne, après vérification du rôle et du magasin
+ */
 export const updateOrderStatusSchema = z.object({
   status: orderStatusSchema,
+  deliveryPerson: objectIdSchema.nullable().optional(),
+});
+
+/**
+ * Correction d'assignation, hors changement de statut.
+ *
+ * ALLOWED_TRANSITIONS interdit out_for_delivery -> out_for_delivery : sans
+ * cette route, une erreur de livreur serait irrattrapable une fois la commande
+ * partie.
+ */
+export const setDeliveryPersonSchema = z.object({
+  deliveryPerson: objectIdSchema.nullable(),
 });
 
 // Le staff fixe le prix de livraison manuellement quand la commande arrive
@@ -197,6 +222,7 @@ export const historyQuerySchema = historyBaseSchema
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type AddItemsToOrderInput = z.infer<typeof addItemsToOrderSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
+export type SetDeliveryPersonInput = z.infer<typeof setDeliveryPersonSchema>;
 export type SetDeliveryFeeInput = z.infer<typeof setDeliveryFeeSchema>;
 export type ResetCounterInput = z.infer<typeof resetCounterSchema>;
 export type OrdersQuery = z.infer<typeof ordersQuerySchema>;

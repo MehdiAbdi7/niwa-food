@@ -7,7 +7,7 @@ import {
   freeTable,
   deleteTable,
 } from "../controllers/table.controller.js";
-import { CheckAuth, isAdmin } from "../middlewares/auth.js";
+import { CheckAuth, isAdmin, isStaff } from "../middlewares/auth.js";
 import {
   validateBodySchema,
   validateQuerySchema,
@@ -28,15 +28,18 @@ tableRouter.get(
   getPublicTables,
 );
 
+// isStaff : la salle ne regarde pas un livreur. Sans lui, un compte delivery
+// verrait le plan de salle et l'état d'occupation de son magasin.
 tableRouter.get(
   "/",
   CheckAuth,
+  isStaff,
   validateQuerySchema(tablesQuerySchema),
   getTables,
 );
 
 // Accessible au staff : débloquer une table en salle ne doit pas dépendre de l'admin
-tableRouter.patch("/:id/free", CheckAuth, freeTable);
+tableRouter.patch("/:id/free", CheckAuth, isStaff, freeTable);
 
 tableRouter.post(
   "/",

@@ -128,3 +128,37 @@ export function isAdmin(req: Request, res: Response, next: NextFunction): void {
     StatusCodes.FORBIDDEN,
   );
 }
+
+/**
+ * Rôles qui travaillent DANS le restaurant.
+ *
+ * Liste blanche et non `role !== "delivery"` : le jour où un quatrième rôle
+ * apparaît (comptable, franchisé...), il sera refusé par défaut et il faudra
+ * l'autoriser explicitement. Une liste noire ferait l'inverse — elle
+ * ouvrirait l'accès à tout nouveau rôle en silence, ce qui est exactement le
+ * genre d'oubli qu'on ne remarque qu'une fois les données parties.
+ */
+const STAFF_ROLES = ["admin", "employee"];
+
+/**
+ * Barrière entre le restaurant et l'extérieur.
+ *
+ * `isAdmin` l'implique déjà : une route admin n'a pas besoin des deux.
+ *
+ * À poser sur TOUTE route qui n'avait que CheckAuth. Un livreur possède une
+ * session valide, donc sans ce middleware il lit les commandes du magasin,
+ * l'historique et le chiffre d'affaires en tapant l'URL de l'API — le
+ * cloisonnement côté front ne protège que les pages, jamais les données.
+ */
+export function isStaff(req: Request, res: Response, next: NextFunction): void {
+  if (req.user && STAFF_ROLES.includes(req.user.role)) {
+    next();
+    return;
+  }
+
+  errorResponse(
+    res,
+    "Accès réservé au personnel du restaurant",
+    StatusCodes.FORBIDDEN,
+  );
+}

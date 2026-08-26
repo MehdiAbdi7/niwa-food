@@ -71,4 +71,24 @@ export function emitOrderTracking(
   io.to(`order:${order._id}`).emit(event, { _id: order._id, event });
 }
 
+/**
+ * Signale à UN livreur que sa liste de courses a changé.
+ *
+ * Signal seul, comme pour le tracking, et pour la même raison : le front
+ * refetche GET /orders/my-deliveries, qui applique déjà le filtre
+ * `deliveryPerson: moi`. Pousser le document ici obligerait à refaire ce
+ * contrôle d'appartenance à un deuxième endroit — donc à l'oublier un jour.
+ *
+ * Prend un identifiant brut et non la commande : lors d'une réassignation, il
+ * faut aussi prévenir l'ANCIEN livreur, dont l'id n'est plus sur le document.
+ */
+export function emitDeliveryUpdated(
+  deliveryPersonId: string,
+  orderId: string,
+): void {
+  io.to(`delivery:${deliveryPersonId}`).emit("delivery_updated", {
+    _id: orderId,
+  });
+}
+
 export type { Store };

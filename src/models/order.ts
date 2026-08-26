@@ -68,6 +68,10 @@ const orderSchema = new Schema<IOrder, OrderModel>(
     // création par issueOrderNumber(), jamais recalculée ensuite.
     serviceDate: { type: Date, required: true },
     table: { type: Schema.Types.ObjectId, ref: "Table" },
+    // Assigné au passage en livraison, jamais obligatoire — voir le commentaire
+    // du type. Absent sur toutes les commandes antérieures : aucun rattrapage
+    // n'est nécessaire, un champ absent ne matche simplement aucun livreur.
+    deliveryPerson: { type: Schema.Types.ObjectId, ref: "User" },
     client: {
       fullName: { type: String, required: true, trim: true },
       phone: { type: String, trim: true },
@@ -148,5 +152,16 @@ orderSchema.index({
  * lus des milliers de fois par jour pour quelques centaines d'écritures.
  */
 orderSchema.index({ store: 1, status: 1, createdAt: -1 });
+
+/**
+ * Index de l'écran livreur : c'est EXACTEMENT la requête de
+ * GET /orders/my-deliveries, rejouée à chaque ouverture de sa page et à chaque
+ * invalidation socket. Partiel — les commandes sans livreur n'y entrent pas,
+ * donc l'index reste minuscule quel que soit le volume de l'historique.
+ */
+orderSchema.index(
+  { deliveryPerson: 1, status: 1, createdAt: 1 },
+  { partialFilterExpression: { deliveryPerson: { $exists: true } } },
+);
 
 export const Order = model<IOrder, OrderModel>("Order", orderSchema);

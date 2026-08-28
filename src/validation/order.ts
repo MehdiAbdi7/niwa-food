@@ -73,6 +73,20 @@ const deliverySchema = z.object({
 
 const commonSchema = z.object({
   items: z.array(orderItemSchema).min(1, "Au moins un item est requis"),
+
+  /**
+   * Code promo, en CLAIR et rien d'autre.
+   *
+   * Ni pourcentage ni montant : c'est resolvePromoCode() qui les lit en base,
+   * exactement comme resolveOrderItemsPricing() pour les prix d'articles. Un
+   * client qui enverrait un `discountAmount` ne serait pas rejeté — le champ
+   * est simplement ignoré, il n'existe pas dans ce schéma.
+   *
+   * La normalisation (majuscules, espaces retirés) est faite dans utils/promo.ts,
+   * pas ici : elle doit s'appliquer à l'identique sur cette route ET sur
+   * /promo-codes/validate, donc elle vit à un seul endroit.
+   */
+  promoCode: z.string().trim().min(2).max(30).optional(),
 });
 
 export const createOrderSchema = z.discriminatedUnion("type", [
@@ -81,7 +95,10 @@ export const createOrderSchema = z.discriminatedUnion("type", [
   deliverySchema.extend(commonSchema.shape),
 ]);
 
-// Pour l'ajout manuel d'items à une commande existante depuis le dashboard
+// Pour l'ajout manuel d'items à une commande existante depuis le dashboard.
+// Volontairement SANS promoCode : un code s'applique à la commande entière, au
+// moment où elle est passée. Le rajouter en cours de route reviendrait à
+// remiser rétroactivement des articles déjà encaissés dans la tête du client.
 export const addItemsToOrderSchema = z.object({
   items: z.array(orderItemSchema).min(1, "Au moins un item est requis"),
 });

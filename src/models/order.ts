@@ -3,6 +3,7 @@ import { IOrder } from "../types/models/order.js";
 import { STORES } from "../config/stores.js";
 import { ORDER_TYPES } from "../config/orderTypes.js";
 import { toServiceDate } from "../utils/serviceDate.js";
+import { computeDiscountAmount, sumItemsTotal } from "../utils/orderTotals.js";
 
 type OrderModel = Model<IOrder>;
 
@@ -48,6 +49,27 @@ const orderItemSchema = new Schema(
   { _id: false },
 );
 
+/**
+ * Instantané du code promo. Voir IOrderPromo pour le pourquoi.
+ *
+ * `code` et `discountPercent` sont recopiés ici et non lus par populate : le
+ * code peut être modifié ou supprimé après coup, l'historique ne doit pas
+ * bouger pour autant.
+ */
+const orderPromoSchema = new Schema(
+  {
+    promoCodeId: {
+      type: Schema.Types.ObjectId,
+      ref: "PromoCode",
+      required: true,
+    },
+    code: { type: String, required: true },
+    discountPercent: { type: Number, required: true, min: 1, max: 100 },
+    maxDiscountAmount: { type: Number, min: 0 },
+  },
+  { _id: false },
+);
+
 const orderSchema = new Schema<IOrder, OrderModel>(
   {
     type: {
@@ -87,6 +109,9 @@ const orderSchema = new Schema<IOrder, OrderModel>(
     },
     remark: { type: String, trim: true },
     deliveryFee: { type: Number, min: 0 },
+    appliedPromo: { type: orderPromoSchema, default: undefined },
+    // Dérivé, jamais saisi : recalculé par le pre("save") ci-dessous.
+    discountAmount: { type: Number, default: 0, min: 0 },
     totalPrice: { type: Number, default: 0, min: 0 },
     completedAt: { type: Date, default: null },
   },
@@ -108,17 +133,35 @@ orderSchema.pre("validate", function () {
   }
 });
 
-// Calcul automatique du totalPrice avant chaque sauvegarde
+/**
+ * Recalcul intégral du total avant chaque sauvegarde.
+ *
+ * L'ORDRE DES TROIS LIGNES EST LA RÈGLE MÉTIER, ne pas l'intervertir :
+ *   1. articles + extras
+ *   2. remise, appliquée sur ce sous-total UNIQUEMENT
+ *   3. frais de livraison, ajoutés APRÈS
+ *
+ * Les frais de livraison échappent volontairement à la remise : c'est ce que
+ * le restaurant doit au livreur, le rogner d'une promotion reviendrait à faire
+ * payer l'opération commerciale par quelqu'un qui n'y est pour rien.
+ *
+ * La remise est RECALCULÉE et non lue : `appliedPromo` ne porte qu'un
+ * pourcentage et un plafond. C'est ce qui permet à addItemsToOrder et à la
+ * fusion dine_in de rester justes — un montant figé en dinars deviendrait faux
+ * à la première modification du panier.
+ */
 orderSchema.pre("save", function () {
-  const itemsTotal = this.items.reduce((sum, item) => {
-    const extrasTotal = item.selectedExtras.reduce(
-      (extraSum, extra) => extraSum + extra.price,
-      0,
-    );
-    return sum + (item.unitPrice + extrasTotal) * item.quantity;
-  }, 0);
+  const itemsTotal = sumItemsTotal(this.items);
 
-  this.totalPrice = itemsTotal + (this.deliveryFee ?? 0);
+  this.discountAmount = this.appliedPromo
+    ? computeDiscountAmount(
+        itemsTotal,
+        this.appliedPromo.discountPercent,
+        this.appliedPromo.maxDiscountAmount,
+      )
+    : 0;
+
+  this.totalPrice = itemsTotal - this.discountAmount + (this.deliveryFee ?? 0);
 });
 
 /**
@@ -162,6 +205,19 @@ orderSchema.index({ store: 1, status: 1, createdAt: -1 });
 orderSchema.index(
   { deliveryPerson: 1, status: 1, createdAt: 1 },
   { partialFilterExpression: { deliveryPerson: { $exists: true } } },
+);
+
+/**
+ * Index des statistiques de promotion : « combien ce code a-t-il rapporté ».
+ *
+ * Partiel lui aussi — l'immense majorité des commandes n'a pas de code promo,
+ * donc l'index reste petit même sur un historique fourni. Il n'est pas utilisé
+ * aujourd'hui par une route, mais il coûte presque rien et évite un COLLSCAN
+ * le jour où tu ajoutes un bilan par code.
+ */
+orderSchema.index(
+  { "appliedPromo.code": 1, serviceDate: -1 },
+  { partialFilterExpression: { appliedPromo: { $exists: true } } },
 );
 
 export const Order = model<IOrder, OrderModel>("Order", orderSchema);

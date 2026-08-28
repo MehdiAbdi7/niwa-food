@@ -69,3 +69,34 @@ export const lookupOrderLimiter = rateLimit({
     );
   },
 });
+
+/**
+ * Limiteur de la vérification de code promo.
+ *
+ * Un code se devine bien plus facilement qu'un ObjectId : NIWA10, PROMO20,
+ * REMISE15, OUVERTURE... Sans limite, quelques centaines de requêtes suffisent
+ * à trouver celui qui est en cours, et à le diffuser hors de la campagne pour
+ * laquelle il a été créé.
+ *
+ * 30 sur 15 minutes, et pour la même raison que lookupOrder : tout le
+ * restaurant partage une IP publique. Un client légitime tape son code une ou
+ * deux fois, trois s'il se trompe ; 30 laisse passer une soirée entière sans
+ * jamais gêner, tout en rendant l'énumération inexploitable.
+ *
+ * NOTE : ce limiteur ne protège QUE la vérification. La création de commande a
+ * le sien (createOrderLimiter), plus large — ce qui est correct : on ne veut
+ * pas bloquer une commande légitime à cause d'un code mal recopié.
+ */
+export const promoCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    errorResponse(
+      res,
+      "Trop de codes essayés, réessayez dans quelques minutes",
+      StatusCodes.TOO_MANY_REQUESTS,
+    );
+  },
+});

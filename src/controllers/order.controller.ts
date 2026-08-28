@@ -6,6 +6,13 @@ import { User } from "../models/user.js";
 import { IOrder } from "../types/models/order.js";
 import { StatusCodes } from "http-status-codes";
 import { resolveOrderItemsPricing } from "../utils/pricing.js";
+import { sumItemsTotal } from "../utils/orderTotals.js";
+import {
+  consumePromoCode,
+  releasePromoCode,
+  resolvePromoCode,
+  type ResolvedPromo,
+} from "../utils/promo.js";
 import {
   assertSameStore,
   resolveAccessibleStores,
@@ -72,11 +79,13 @@ const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 
 // Champs exposés au client qui suit sa commande (route publique, sans auth).
 // Le détail chiffré est inclus : c'est ce que le client va payer, il doit le
-// voir, frais de livraison compris. Ce qui reste exclu est ce qui l'identifie
-// — téléphone et adresse : la room de suivi est ouverte à quiconque connaît
-// l'id, et un ObjectId peut circuler (capture d'écran, lien partagé).
+// voir, frais de livraison ET REMISE compris — un total plus bas que la somme
+// des articles sans ligne pour l'expliquer ressemble à une erreur de caisse.
+// Ce qui reste exclu est ce qui l'identifie — téléphone et adresse : la room de
+// suivi est ouverte à quiconque connaît l'id, et un ObjectId peut circuler
+// (capture d'écran, lien partagé).
 const TRACKING_FIELDS =
-  "type status store dailyNumber items remark deliveryFee totalPrice createdAt completedAt client.fullName";
+  "type status store dailyNumber items remark deliveryFee discountAmount appliedPromo.code appliedPromo.discountPercent totalPrice createdAt completedAt client.fullName";
 
 /**
  * Champs renvoyés dans la LISTE de l'historique.
@@ -85,9 +94,13 @@ const TRACKING_FIELDS =
  * extras et formules, soit 60 Ko pour une page de 20 — pour afficher quatre
  * colonnes. La modale de détail refait déjà son propre GET /orders/:id quand
  * l'utilisateur clique sur une ligne, donc rien n'est perdu.
+ *
+ * `discountAmount` et le code sont là pour signaler une vente remisée d'un coup
+ * d'œil : sans eux, un ticket à 1 800 DA au lieu de 2 000 est illisible depuis
+ * la liste, et il faut ouvrir chaque ligne pour comprendre un écart de CA.
  */
 const HISTORY_LIST_FIELDS =
-  "dailyNumber status type store totalPrice completedAt serviceDate createdAt client.fullName";
+  "dailyNumber status type store totalPrice discountAmount appliedPromo.code completedAt serviceDate createdAt client.fullName";
 
 // Statut atteint -> événement poussé au client. Les quatre y sont : sans
 // "completed" ni "cancelled", un client annulé resterait indéfiniment sur
@@ -166,9 +179,15 @@ export async function createOrder(
   res: Response,
   next: NextFunction,
 ) {
-  try {
-    const data = req.body;
+  // `promoCode` est retiré du reste : il ne fait pas partie du document Order,
+  // seul son INSTANTANÉ résolu y entre (voir IOrderPromo).
+  const { promoCode, ...data } = req.body;
 
+  // Déclaré hors du try pour rester accessible au catch : si l'écriture échoue
+  // après la réservation, l'usage doit être rendu.
+  let promo: ResolvedPromo | null = null;
+
+  try {
     // Le staff n'est JAMAIS bloqué par la fermeture des commandes en ligne :
     // il continue de prendre les commandes au comptoir et au téléphone. C'est
     // optionalAuth (voir order.routes.ts) qui renseigne req.user ici — sans
@@ -189,6 +208,24 @@ export async function createOrder(
     // Résout les vrais prix/noms depuis la base (menuItem + variant + extras).
     // Le client ne fournit que des IDs et des choix, jamais de prix.
     const resolvedItems = await resolveOrderItemsPricing(data.items);
+
+    /**
+     * Code promo : résolu APRÈS la tarification, et pour une raison précise —
+     * `minOrderAmount` porte sur le total RÉEL des articles, celui que le
+     * serveur vient de calculer, jamais sur un montant annoncé par le client.
+     *
+     * Aucune écriture ici : resolvePromoCode ne fait que lire et valider. La
+     * réservation d'un usage vient plus bas, juste avant la création — sinon
+     * une commande rejetée pour une table introuvable brûlerait un code.
+     */
+    const itemsTotal = sumItemsTotal(resolvedItems);
+
+    if (promoCode) {
+      promo = await resolvePromoCode(promoCode, {
+        itemsTotal,
+        orderType: data.type,
+      });
+    }
 
     // Cas dine_in : le magasin est TOUJOURS dérivé de la table, jamais du client
     if (data.type === "dine_in") {
@@ -217,6 +254,28 @@ export async function createOrder(
         });
 
         if (existingOrder) {
+          /**
+           * REFUS EXPLICITE du code promo sur une fusion.
+           *
+           * Deux façons de mal faire, écartées toutes les deux :
+           *   - l'appliquer à la commande fusionnée remiserait aussi les
+           *     articles déjà commandés par quelqu'un d'autre à la même table
+           *   - l'ignorer en silence laisserait le client croire à une remise
+           *     qu'il ne verra jamais, et découvrir l'écart au moment de payer
+           *
+           * Une remise déjà présente sur la commande d'accueil, elle, est
+           * CONSERVÉE et recalculée sur le nouveau total par le pre("save") du
+           * modèle — c'est le comportement voulu.
+           */
+          if (promo) {
+            errorResponse(
+              res,
+              "Une commande est déjà en cours sur cette table : le code promo ne peut plus y être ajouté. Demandez à un membre de l'équipe.",
+              StatusCodes.CONFLICT,
+            );
+            return;
+          }
+
           existingOrder.items.push(...resolvedItems);
           if (data.remark) existingOrder.remark = data.remark;
           await existingOrder.save();
@@ -239,12 +298,18 @@ export async function createOrder(
       // Pas de commande en cours -> nouvelle commande + occupation de la table
       const { dailyNumber, serviceDate } = await issueOrderNumber(store);
 
+      // Réservation ATOMIQUE de l'usage, juste avant l'écriture. Voir
+      // consumePromoCode : c'est ce qui empêche deux clients de passer
+      // simultanément sur le dernier usage d'un code limité.
+      if (promo) await consumePromoCode(promo.snapshot.promoCodeId);
+
       const newOrder = await Order.create({
         ...data,
         store,
         items: resolvedItems,
         dailyNumber,
         serviceDate,
+        ...(promo ? { appliedPromo: promo.snapshot } : {}),
       });
 
       table.currentOrderId = newOrder._id;
@@ -265,11 +330,14 @@ export async function createOrder(
     // takeaway / delivery : le magasin est choisi explicitement par le client
     const { dailyNumber, serviceDate } = await issueOrderNumber(data.store);
 
+    if (promo) await consumePromoCode(promo.snapshot.promoCodeId);
+
     const newOrder = await Order.create({
       ...data,
       items: resolvedItems,
       dailyNumber,
       serviceDate,
+      ...(promo ? { appliedPromo: promo.snapshot } : {}),
     });
 
     emitOrderCreated(newOrder);
@@ -281,6 +349,19 @@ export async function createOrder(
       StatusCodes.CREATED,
     );
   } catch (error) {
+    /**
+     * L'usage a peut-être été réservé avant l'échec : on le rend.
+     *
+     * `releasePromoCode` ne lève jamais, précisément pour ne pas masquer
+     * l'erreur d'origine. Et il ne descend jamais sous zéro.
+     *
+     * Cas non couvert, assumé : le processus meurt entre la réservation et
+     * l'écriture. Le compteur reste alors un cran trop haut — un code qui
+     * s'épuise une commande trop tôt, ce qui se corrige en deux clics depuis
+     * le dashboard. L'inverse (une remise accordée hors quota) coûterait de
+     * l'argent réel sans laisser de trace.
+     */
+    if (promo) await releasePromoCode(promo.snapshot.promoCodeId);
     next(error);
   }
 }
@@ -420,6 +501,15 @@ export async function deleteOrder(
     await order.deleteOne();
     emitOrderDeleted(order);
 
+    /**
+     * L'usage du code promo n'est PAS rendu ici, volontairement.
+     *
+     * Une commande supprimée ou annulée reste une commande qui a été passée :
+     * le code a circulé, il a servi. Le décompte est un plafond de diffusion,
+     * pas une comptabilité de tickets. Et rendre l'usage ouvrirait une façon
+     * très simple de recharger un code épuisé — passer puis annuler.
+     */
+
     // Le client suivait peut-être cette commande : le laisser sur un écran
     // figé serait pire que lui dire qu'elle n'existe plus. Le refetch qui
     // suivra renverra un 404, que la page de suivi sait afficher.
@@ -465,6 +555,8 @@ export async function addItemsToOrder(
     const resolvedItems = await resolveOrderItemsPricing(req.body.items);
 
     order.items.push(...resolvedItems);
+    // Le pre("save") recalcule la remise sur le NOUVEAU total des articles :
+    // un « -10 % » reste 10 % des articles, quel que soit ce qu'on ajoute.
     await order.save();
 
     emitOrderUpdated(order);
@@ -511,7 +603,9 @@ export async function setDeliveryFee(
     }
 
     order.deliveryFee = req.body.deliveryFee;
-    await order.save(); // le pre("save") recalcule totalPrice avec le deliveryFee
+    // Le pre("save") recalcule totalPrice : articles − remise + deliveryFee.
+    // Les frais de livraison échappent à la remise, voir models/order.ts.
+    await order.save();
 
     emitOrderUpdated(order);
 
@@ -730,7 +824,7 @@ export async function updateOrderStatus(
  *
  * Pas de projection restrictive, contrairement à TRACKING_FIELDS : ici le
  * téléphone et l'adresse du client sont précisément ce dont le livreur a le
- * plus besoin.
+ * plus besoin. La remise en fait partie — c'est le total remisé qu'il encaisse.
  *
  * Tri ascendant : la course la plus ancienne d'abord, c'est l'ordre dans
  * lequel il doit les faire.
@@ -1000,6 +1094,19 @@ export async function getServiceStats(
                         ],
                       },
                     },
+                    // Ce que les promotions ont coûté sur ce service. Une seule
+                    // ligne dans un $facet déjà en place, donc gratuite — et
+                    // c'est le premier chiffre qu'un gérant demande le
+                    // lendemain d'une campagne.
+                    discounts: {
+                      $sum: {
+                        $cond: [
+                          { $eq: ["$status", "completed"] },
+                          { $ifNull: ["$discountAmount", 0] },
+                          0,
+                        ],
+                      },
+                    },
                   },
                 },
               ],
@@ -1041,6 +1148,7 @@ export async function getServiceStats(
           orders: 0,
           completed: 0,
           revenue: 0,
+          discounts: 0,
         };
 
         return {
@@ -1050,6 +1158,7 @@ export async function getServiceStats(
           orders: totals.orders,
           completed: totals.completed,
           revenue: totals.revenue,
+          discounts: totals.discounts ?? 0,
           averageBasket:
             totals.completed > 0
               ? Math.round(totals.revenue / totals.completed)
@@ -1313,6 +1422,13 @@ export async function getHistory(
         "client.fullName": { $regex: escapeRegex(search), $options: "i" },
       });
 
+      // Le code promo est une clé de recherche légitime : « sors-moi toutes
+      // les ventes de NIWA10 » est exactement ce qu'on demande au lendemain
+      // d'une campagne. Égalité exacte, sur un champ indexé.
+      conditions.push({
+        "appliedPromo.code": search.replace(/\s+/g, "").toUpperCase(),
+      });
+
       filter.$or = conditions;
     }
 
@@ -1340,13 +1456,17 @@ export async function getHistory(
         // fait que les sérialiser en JSON, tous les getters/setters/virtuels
         // seraient construits pour rien.
         .lean(),
-      Order.aggregate<{ count: number; revenue: number }>([
+      Order.aggregate<{ count: number; revenue: number; discounts: number }>([
         { $match: filter },
         {
           $group: {
             _id: null,
             count: { $sum: 1 },
             revenue: { $sum: "$totalPrice" },
+            // $ifNull : les commandes antérieures au code promo n'ont pas ce
+            // champ, et un $sum sur un champ absent vaut 0 — mais l'écrire
+            // explicitement évite d'avoir à s'en souvenir.
+            discounts: { $sum: { $ifNull: ["$discountAmount", 0] } },
           },
         },
       ]),
@@ -1354,6 +1474,7 @@ export async function getHistory(
 
     const totalCount = summary?.count ?? 0;
     const revenue = summary?.revenue ?? 0;
+    const discounts = summary?.discounts ?? 0;
 
     successResponse(
       res,
@@ -1367,6 +1488,10 @@ export async function getHistory(
         summary: {
           count: totalCount,
           revenue,
+          // Ce que les promotions ont coûté sur la période. `revenue` est déjà
+          // NET de remise (totalPrice l'est) : les deux ne s'additionnent pas,
+          // c'est un montant informatif.
+          discounts,
           averageBasket: totalCount > 0 ? Math.round(revenue / totalCount) : 0,
         },
       },

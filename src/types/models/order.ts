@@ -30,6 +30,29 @@ export interface IOrderItem {
   formula?: IOrderFormula;
 }
 
+/**
+ * INSTANTANÉ du code promo au moment de la commande.
+ *
+ * Même principe que le snapshot de formule et que les prix d'articles : la
+ * commande fige ce qui a été RÉELLEMENT accordé, elle ne référence pas le code
+ * vivant. Sans ça, passer NIWA10 de 10 % à 15 % en novembre modifierait le
+ * chiffre d'affaires d'octobre — l'historique n'est qu'une agrégation sur
+ * `orders`, il n'a aucun autre garde-fou.
+ *
+ * `promoCodeId` est conservé pour les statistiques (« combien de commandes ce
+ * code a-t-il générées »), JAMAIS pour recalculer un montant. Le code peut
+ * d'ailleurs avoir été supprimé depuis : le populate échouerait, le snapshot
+ * non.
+ */
+export interface IOrderPromo {
+  promoCodeId: Types.ObjectId;
+  /** Le code tel qu'il était, en majuscules. */
+  code: string;
+  discountPercent: number;
+  /** Plafond en vigueur ce jour-là. Absent = aucun. */
+  maxDiscountAmount?: number;
+}
+
 export interface IOrderClient {
   fullName: string;
   phone?: string;
@@ -68,6 +91,19 @@ export interface IOrder {
   items: IOrderItem[];
   remark?: string;
   deliveryFee?: number;
+  /** Code promo appliqué, figé. Absent = commande au tarif plein. */
+  appliedPromo?: IOrderPromo;
+  /**
+   * Montant de la remise en DA, RECALCULÉ à chaque save().
+   *
+   * Ce n'est pas une valeur saisie : elle est dérivée de `appliedPromo` et du
+   * total des articles, dans le pre("save") du modèle. C'est indispensable —
+   * le staff peut ajouter des articles après coup (addItemsToOrder) ou fusionner
+   * une commande de table, et une remise figée en dinars transformerait alors
+   * un « -10 % » en un « -250 DA » sur un panier devenu bien plus gros.
+   */
+  discountAmount: number;
+  /** Articles − remise + livraison. Toujours calculé, jamais reçu du client. */
   totalPrice: number;
   completedAt?: Date | null;
   createdAt: Date;

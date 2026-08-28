@@ -15,6 +15,7 @@ import orderRouter from "./routes/order.routes.js";
 import tableRouter from "./routes/table.routes.js";
 import uploadRouter from "./routes/upload.routes.js";
 import storeRouter from "./routes/storeSettings.routes.js";
+import promoCodeRouter from "./routes/promoCode.routes.js";
 
 const app = express();
 
@@ -62,6 +63,9 @@ app.use("/orders", orderRouter);
 app.use("/upload", uploadRouter);
 // Ouverture/fermeture des commandes en ligne, par magasin.
 app.use("/stores", storeRouter);
+// Codes promo : administration réservée à l'admin, vérification publique
+// (GET /promo-codes/validate) protégée par son propre limiteur.
+app.use("/promo-codes", promoCodeRouter);
 
 // route de test
 app.get("/health", (_req, res) => {
@@ -98,7 +102,7 @@ app.use(
     }
 
     // Erreur métier custom avec statusCode explicite (ex: resolveOrderItemsPricing,
-    // assertStoreAcceptsOrders qui renvoie 503 sur un magasin fermé)
+    // resolvePromoCode, assertStoreAcceptsOrders qui renvoie 503 sur un magasin fermé)
     if (err.statusCode && typeof err.statusCode === "number") {
       errorResponse(res, err.message, err.statusCode);
       return;

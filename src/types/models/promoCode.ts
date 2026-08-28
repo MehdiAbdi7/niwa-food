@@ -11,6 +11,20 @@ import { OrderType } from "../../config/orderTypes.js";
  * REMISE EN POURCENTAGE UNIQUEMENT. Un montant fixe imposerait une deuxième
  * règle de calcul dans le pre("save") du modèle Order, donc deux endroits où
  * un total peut diverger de ce qui a été annoncé au client.
+ *
+ * ---
+ * NOTE SUR `null` vs `undefined`, valable pour TOUTES les contraintes
+ * facultatives ci-dessous.
+ *
+ * Elles acceptent les DEUX, et ce n'est pas du laxisme :
+ *   - `undefined` = la clé est absente de la requête -> ne touche à rien
+ *   - `null`      = l'admin a VIDÉ le champ -> efface la contrainte en base
+ *
+ * Sans `null`, un plafond retiré depuis le dashboard resterait en place :
+ * `updatePromoCode` fait un `Object.assign`, et une clé absente n'écrase rien.
+ * C'est aussi ce qui rend `req.body` (typé par Zod) assignable à `create()` —
+ * l'oublier casse la compilation, ce qui est encore la meilleure façon de s'en
+ * rendre compte.
  */
 export interface IPromoCode {
   /**
@@ -35,10 +49,10 @@ export interface IPromoCode {
    * 12 000 DA, c'est 1 200 DA offerts sur une commande qu'on n'avait pas prévue.
    * Un plafond borne le risque sans changer le discours côté client.
    */
-  maxDiscountAmount?: number;
+  maxDiscountAmount?: number | null;
 
   /** Panier minimum (articles seuls, hors livraison) pour que le code s'applique. */
-  minOrderAmount?: number;
+  minOrderAmount?: number | null;
 
   /** Début de validité. Absent = valable immédiatement. */
   startsAt?: Date | null;

@@ -11,7 +11,7 @@
 [![Redux Toolkit](https://img.shields.io/badge/Redux_Toolkit-2-764ABC?logo=redux&logoColor=white)](https://redux-toolkit.js.org)
 [![Socket.io](https://img.shields.io/badge/Socket.io-4-010101?logo=socket.io&logoColor=white)](https://socket.io)
 
-[🌐 Démo en ligne](https://niwa-food.vercel.app) · [⚙️ Backend](https://github.com/mehdiabdi7)
+[🌐 Démo en ligne](https://niwa-food.vercel.app) · [⚙️ Backend](../server)
 
 </div>
 
@@ -96,13 +96,13 @@ Ces quatre espaces sont le miroir exact du cloisonnement de l'API : le front mas
 ### Prérequis
 
 - Node.js ≥ 20
-- Le [backend Niwa Food](https://github.com/mehdiabdi7) lancé (par défaut sur `http://localhost:5000`)
+- Le [backend Niwa Food](../server) lancé (par défaut sur `http://localhost:5000`)
 
 ### Installation
 
 ```bash
-git clone https://github.com/mehdiabdi7/fastfood-frontend.git
-cd fastfood-frontend
+git clone https://github.com/mehdiabdi7/niwa-food.git
+cd niwa-food/client
 
 npm install
 
@@ -382,7 +382,7 @@ src/
 | Base de données | **MongoDB Atlas**                                                 |
 | Images          | **Cloudinary**                                                    |
 
-Sur Vercel, ajouter `NEXT_PUBLIC_API_URL` pour **Production**, **Preview** et **Development**.
+Sur Vercel, régler **Root Directory** sur `client`, puis ajouter `NEXT_PUBLIC_API_URL` pour **Production**, **Preview** et **Development**.
 
 Côté backend, veiller à :
 

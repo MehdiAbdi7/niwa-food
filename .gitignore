@@ -1,0 +1,5 @@
+# Chaque application a aussi son propre .gitignore (client/ et server/)
+node_modules/
+.env
+.env.local
+.DS_Store

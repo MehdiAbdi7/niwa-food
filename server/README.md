@@ -11,7 +11,7 @@
 [![Zod](https://img.shields.io/badge/Zod-4-3E67B1)](https://zod.dev)
 [![Socket.io](https://img.shields.io/badge/Socket.io-4-010101?logo=socket.io&logoColor=white)](https://socket.io)
 
-[⚙️ Frontend](https://github.com/mehdiabdi7) · [🌐 Application en ligne](https://niwa-food.vercel.app)
+[⚙️ Frontend](../client) · [🌐 Application en ligne](https://niwa-food.vercel.app)
 
 </div>
 
@@ -80,8 +80,8 @@ Le rôle `delivery` est un **prestataire externe**, pas un membre du restaurant 
 ### Installation
 
 ```bash
-git clone https://github.com/mehdiabdi7/fastfood-backend.git
-cd fastfood-backend
+git clone https://github.com/mehdiabdi7/niwa-food.git
+cd niwa-food/server
 
 npm install
 
@@ -682,7 +682,8 @@ next(error) ──► handler centralisé (app.ts)
 **Configuration Render :**
 
 ```
-Build Command : npm install && npm run build
+Root Directory : server
+Build Command  : npm install && npm run build
 Start Command : npm start
 Node Version  : 22+
 ```

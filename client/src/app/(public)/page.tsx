@@ -30,91 +30,93 @@ export default function Home() {
           cascade) : il est visible d'emblée, il n'a rien à révéler au scroll. */}
       <Hero />
 
-      <div className="relative">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -left-7 top-50 z-20 hidden h-96 w-48 -translate-y-1/2 sm:h-112 sm:w-56 xl:block"
-        >
-          <Image
-            src="/sauces.png"
-            alt=""
-            fill
-            sizes={DECO_SIZES}
-            className="rounded-2xl object-cover object-center"
-          />
+      <div className="flex flex-col gap-20 py-20">
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -left-7 top-50 z-20 hidden h-96 w-48 -translate-y-1/2 sm:h-112 sm:w-56 xl:block"
+          >
+            <Image
+              src="/sauces.png"
+              alt=""
+              fill
+              sizes={DECO_SIZES}
+              className="rounded-2xl object-cover object-center"
+            />
+          </div>
         </div>
-      </div>
 
-      <Reveal delay={REVEAL_DELAY_MS}>
-        <BestSellers />
-      </Reveal>
+        <Reveal delay={REVEAL_DELAY_MS}>
+          <BestSellers />
+        </Reveal>
 
-      <div className="relative">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-4 top-70 z-20 hidden -translate-y-1/2 sm:h-240 sm:w-56 xl:block"
-        >
-          {/* Pas de `priority` : ces images sont purement ornementales et
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-4 top-70 z-20 hidden -translate-y-1/2 sm:h-240 sm:w-56 xl:block"
+          >
+            {/* Pas de `priority` : ces images sont purement ornementales et
               masquées sous xl. Les précharger volait la priorité de la photo
               du hero, qui est le vrai contenu de la page. */}
-          <Image
-            src="/deco.png"
-            alt=""
-            fill
-            sizes={DECO_SIZES}
-            className="object-contain object-center"
-          />
+            <Image
+              src="/deco.png"
+              alt=""
+              fill
+              sizes={DECO_SIZES}
+              className="object-contain object-center"
+            />
+          </div>
         </div>
-      </div>
 
-      <Reveal delay={REVEAL_DELAY_MS}>
-        <HowItWorks />
-      </Reveal>
+        <Reveal delay={REVEAL_DELAY_MS}>
+          <HowItWorks />
+        </Reveal>
 
-      {/* About suit HowItWorks sans décoration entre les deux : sur grand
+        {/* About suit HowItWorks sans décoration entre les deux : sur grand
           écran les deux entrent quasi ensemble dans le champ. Le retard
           supplémentaire les fait lire comme une séquence, pas un sursaut. */}
-      <Reveal delay={REVEAL_DELAY_MS + 150}>
-        <About />
-      </Reveal>
+        <Reveal delay={REVEAL_DELAY_MS + 150}>
+          <About />
+        </Reveal>
 
-      <div className="relative">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -left-7 top-0 z-20 hidden -translate-y-1/2 sm:h-240 sm:w-56 xl:block"
-        >
-          <Image
-            src="/deco.png"
-            alt=""
-            fill
-            sizes={DECO_SIZES}
-            className="object-contain object-center"
-          />
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -left-7 top-0 z-20 hidden -translate-y-1/2 sm:h-240 sm:w-56 xl:block"
+          >
+            <Image
+              src="/deco.png"
+              alt=""
+              fill
+              sizes={DECO_SIZES}
+              className="object-contain object-center"
+            />
+          </div>
         </div>
-      </div>
 
-      <Reveal delay={REVEAL_DELAY_MS}>
-        <Testimonials />
-      </Reveal>
+        <Reveal delay={REVEAL_DELAY_MS}>
+          <Testimonials />
+        </Reveal>
 
-      <div className="relative">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-7 top-125 z-20 hidden -translate-y-1/2 -scale-x-100 sm:h-112 sm:w-56 xl:block"
-        >
-          <Image
-            src="/sauces2.png"
-            alt=""
-            fill
-            sizes={DECO_SIZES}
-            className="rounded-2xl object-cover object-center"
-          />
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-7 top-125 z-20 hidden -translate-y-1/2 -scale-x-100 sm:h-112 sm:w-56 xl:block"
+          >
+            <Image
+              src="/sauces2.png"
+              alt=""
+              fill
+              sizes={DECO_SIZES}
+              className="rounded-2xl object-cover object-center"
+            />
+          </div>
         </div>
-      </div>
 
-      <Reveal delay={REVEAL_DELAY_MS}>
-        <Contact />
-      </Reveal>
+        <Reveal delay={REVEAL_DELAY_MS}>
+          <Contact />
+        </Reveal>
+      </div>
     </>
   );
 }

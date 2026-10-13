@@ -21,41 +21,48 @@ function applyThemeClass(mode: ThemeMode) {
 }
 
 /**
+ * Change le thème sans déclencher les transitions des éléments, qui
+ * joueraient chacune à sa vitesse (de 150 à 300 ms) au lieu de changer d'un
+ * coup. `theme-switching` (globals.css) les coupe, puis la lecture de
+ * getComputedStyle force le navigateur à calculer les nouveaux styles tout de
+ * suite, pendant qu'elles sont coupées. Sans cette lecture, il les calculerait
+ * après le retrait de la classe, et les transitions joueraient quand même.
+ */
+function applyThemeWithoutTransitions(mode: ThemeMode) {
+  const root = document.documentElement;
+  root.classList.add("theme-switching");
+  applyThemeClass(mode);
+  window.getComputedStyle(root).getPropertyValue("color");
+  setTimeout(() => root.classList.remove("theme-switching"), 1);
+}
+
+/**
  * Bascule de thème en un seul fondu, via l'API View Transitions : le
  * navigateur photographie la page avant et après, puis fond les deux images.
  * Couleurs, images de fond et dégradés changent donc ensemble. Des transitions
  * CSS par élément ne le peuvent pas : chacune a sa durée, et un dégradé ne
  * s'anime pas.
  *
- * `theme-switching` (globals.css) coupe les transitions des éléments pendant
- * la bascule, sinon elles rejoueraient dans l'image « après ». Navigateur sans
- * l'API ou réglage « réduire les animations » : bascule instantanée.
+ * Sans fondu possible (navigateur sans l'API, réglage « réduire les
+ * animations », ou onglet en arrière-plan, où le navigateur saute le fondu) :
+ * bascule instantanée, grâce à applyThemeWithoutTransitions dans les deux cas.
  */
-let currentTransition: ViewTransition | null = null;
-
 function switchTheme(mode: ThemeMode) {
   const reduceMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;
   if (typeof document.startViewTransition !== "function" || reduceMotion) {
-    applyThemeClass(mode);
+    applyThemeWithoutTransitions(mode);
     return;
   }
 
-  const root = document.documentElement;
-  root.classList.add("theme-switching");
-  const transition = document.startViewTransition(() => applyThemeClass(mode));
-  currentTransition = transition;
-  // Double-clic rapide : la seconde bascule interrompt la première. Son
-  // `ready` est alors rejeté (AbortError), ce qui est attendu : sans ce catch,
-  // la console afficherait une erreur non gérée. Et sa fin ne doit pas
-  // réactiver les transitions en pleine seconde bascule.
+  const transition = document.startViewTransition(() =>
+    applyThemeWithoutTransitions(mode),
+  );
+  // Fondu sauté (double-clic rapide, onglet en arrière-plan) : `ready` est
+  // rejeté (AbortError), ce qui est attendu. Sans ce catch, la console
+  // afficherait une erreur non gérée.
   transition.ready.catch(() => {});
-  transition.finished.finally(() => {
-    if (currentTransition === transition) {
-      root.classList.remove("theme-switching");
-    }
-  });
 }
 
 export function useTheme() {

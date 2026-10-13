@@ -236,7 +236,21 @@ button,
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  transition: background-image 0.6s ease-in-out;
+}
+
+/* Bascule de thème (switchTheme, dans useTheme.ts) : toute la page change en
+   un seul fondu. Les transitions des éléments sont coupées le temps de la
+   bascule, sinon elles rejoueraient par-dessus le fondu, chacune à sa vitesse. */
+.theme-switching,
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.5s;
 }
 
 /* Carte standard du dashboard : une seule définition pour toutes les cartes

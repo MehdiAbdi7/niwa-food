@@ -17,9 +17,7 @@ import { STORE_LABELS } from "@/types/store";
  */
 export function DeliveryHeader() {
   const { user, logout } = useAuth();
-  const { mode, toggleTheme } = useTheme();
-
-  const isDark = mode === "dark";
+  const { isDark, toggleTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-border-subtle bg-background/95 px-4 py-3 backdrop-blur-md sm:px-6">

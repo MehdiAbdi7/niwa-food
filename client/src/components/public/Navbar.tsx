@@ -3,8 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRef } from "react";
 
 import { useNavbar } from "@/features/navbar/useNavbar";
+import { useHeightVar } from "@/lib/useHeightVar";
 import { ThemeToggle } from "./themeToggle";
 import { CartButton } from "./CartButton";
 import { TrackOrderButton } from "./TrackOrderButton";
@@ -40,12 +42,17 @@ const Navbar = () => {
   const { isScrolled, isMenuOpen, toggleMenu, closeMenu } = useNavbar();
   const pathname = usePathname();
 
+  // Hauteur publiée pour les éléments collants de la carte (voir useHeightVar).
+  const headerRef = useRef<HTMLElement>(null);
+  useHeightVar(headerRef, "--header-height");
+
   return (
     // Au défilement, le header prend la couleur du fond et non plus
     // bg-primary : sur un fond primary plein, ni « NIWA » ni la moutarde de
     // « FOOD » n'atteignaient 4,5:1. Les textes gardent ainsi les mêmes
     // couleurs dans les deux états, seuls le fond et l'ombre apparaissent.
     <header
+      ref={headerRef}
       className={`fixed z-40 w-full transition-all duration-300 ease-in ${
         isScrolled || isMenuOpen
           ? "bg-background shadow-md shadow-primary/20"

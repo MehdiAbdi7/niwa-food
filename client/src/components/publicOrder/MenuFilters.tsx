@@ -2,7 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
+import { useHeightVar } from "@/lib/useHeightVar";
 import {
+  activeAnchorChanged,
   searchChanged,
   selectActiveGroup,
   selectActiveSubKey,
@@ -94,6 +96,11 @@ export function MenuFilters({ nav }: MenuFiltersProps) {
   const chipRefs = useRef(new Map<string, HTMLButtonElement>());
   const railRef = useRef<HTMLDivElement>(null);
 
+  // Hauteur publiée pour les ancres de la carte : sur mobile, les titres
+  // doivent atterrir sous cette barre (voir ANCHOR_OFFSET dans DishList).
+  const asideRef = useRef<HTMLElement>(null);
+  useHeightVar(asideRef, "--menu-nav-height");
+
   const totalCount = nav.reduce((sum, group) => sum + group.count, 0);
   const currentGroup = nav.find((group) => group.label === activeGroup) ?? null;
   const subChips = currentGroup ? getSubChips(currentGroup) : [];
@@ -135,7 +142,12 @@ export function MenuFilters({ nav }: MenuFiltersProps) {
     // compteur restent toujours visibles, seule la liste des catégories
     // défile. Faire défiler l'aside entier escamotait le champ de recherche
     // exactement quand on en avait besoin.
-    <aside className="sticky top-20 z-30 mb-6 flex flex-col gap-2.5 rounded-3xl border border-primary/20 bg-background/70 p-2.5 shadow-[0_10px_35px_-15px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:p-3 lg:top-24 lg:mb-0 lg:max-h-[calc(100dvh-8rem)] lg:w-64 lg:shrink-0 lg:overflow-hidden lg:p-4 dark:bg-primary/10">
+    // top-(--sticky-top) : collée 1rem sous le header, quelle que soit sa
+    // hauteur (voir globals.css). Le max-h retire ce décalage plus 2rem de
+    // marge en bas, pour que la colonne ne touche jamais le bas de l'écran.
+    <aside
+      ref={asideRef}
+      className="sticky top-(--sticky-top) z-30 mb-6 flex flex-col gap-2.5 rounded-3xl border border-primary/20 bg-background/70 p-2.5 shadow-[0_10px_35px_-15px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:p-3 lg:mb-0 lg:max-h-[calc(100dvh_-_var(--sticky-top)_-_2rem)] lg:w-64 lg:shrink-0 lg:overflow-hidden lg:p-4 dark:bg-primary/10">
       <label className="relative block">
         <span className="sr-only">Rechercher un plat</span>
         <span
@@ -193,7 +205,15 @@ export function MenuFilters({ nav }: MenuFiltersProps) {
                   else chipRefs.current.delete(group.label);
                 }}
                 type="button"
-                onClick={() => scrollToAnchor(sectionAnchorId(group.label))}
+                onClick={() => {
+                  // La catégorie s'allume AVANT le défilement : sur mobile,
+                  // ses sous-catégories changent la hauteur de la barre, donc
+                  // l'endroit où le titre doit atterrir (voir scrollToAnchor).
+                  dispatch(
+                    activeAnchorChanged({ group: group.label, subKey: null }),
+                  );
+                  scrollToAnchor(sectionAnchorId(group.label));
+                }}
                 aria-current={isActive ? "true" : undefined}
                 className={`flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-2.5 font-heading text-sm font-bold transition-colors lg:w-full lg:justify-start lg:rounded-xl lg:px-3 lg:py-2.5 ${
                   isActive

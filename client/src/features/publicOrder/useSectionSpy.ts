@@ -9,6 +9,46 @@ import type { SpyAnchor } from "./menuBlocks";
 // avant que la section ne soit vraiment lisible.
 const ACTIVATION_RATIO = 0.32;
 
+// Pendant un défilement lancé par un clic, l'espion se met en pause. Sans
+// cela, chaque section traversée rallumait sa catégorie en chemin, et sur
+// mobile la barre changeait de hauteur en plein trajet (sous-catégories qui
+// apparaissent puis disparaissent) : le titre visé arrivait décalé.
+let isPaused = false;
+let resumeTimer = 0;
+let resumeListener: (() => void) | null = null;
+
+function pauseSpyUntilScrollStops() {
+  // Deux clics rapprochés : on remplace l'attente en cours au lieu d'en
+  // empiler une seconde.
+  if (resumeListener) window.removeEventListener("scroll", resumeListener);
+  isPaused = true;
+
+  const resume = () => {
+    window.removeEventListener("scroll", resumeLater);
+    resumeListener = null;
+    isPaused = false;
+    // Une mesure à l'arrivée : c'est elle qui rallume la bonne
+    // sous-catégorie, puisque rien n'a été mesuré pendant le trajet.
+    window.dispatchEvent(new Event("scroll"));
+  };
+
+  // 150 ms sans aucun événement scroll : le défilement est terminé. Plus sûr
+  // que l'événement "scrollend", que Safari ne gère pas encore.
+  const resumeLater = () => {
+    window.clearTimeout(resumeTimer);
+    resumeTimer = window.setTimeout(resume, 150);
+  };
+
+  resumeListener = resumeLater;
+  window.addEventListener("scroll", resumeLater, { passive: true });
+
+  // Filet de sécurité : si la page ne bouge pas du tout (on est déjà sur la
+  // section), aucun événement scroll n'arrive. Le compte à rebours de 150 ms
+  // ne démarre donc qu'au premier mouvement, et pas avant le défilement.
+  window.clearTimeout(resumeTimer);
+  resumeTimer = window.setTimeout(resume, 1000);
+}
+
 /**
  * Signale quelle section de la carte le client est en train de lire.
  *
@@ -55,6 +95,7 @@ export function useSectionSpy(
 
     const measure = () => {
       frame = 0;
+      if (isPaused) return;
 
       const list = anchorsRef.current;
       if (list.length === 0) return;
@@ -65,7 +106,17 @@ export function useSectionSpy(
       for (const anchor of list) {
         const element = document.getElementById(anchor.id);
         if (!element) continue;
-        if (element.getBoundingClientRect().top <= threshold) current = anchor;
+
+        // Un clic fait atterrir l'ancre à sa marge (scroll-margin-top). Sur
+        // mobile, cette marge (header + barre des catégories) dépasse le
+        // seuil : sans ce max, la section visée ne s'allumait pas à
+        // l'arrivée. +2 px absorbent les arrondis du navigateur.
+        const scrollMargin = parseFloat(
+          getComputedStyle(element).scrollMarginTop,
+        );
+        const reachedAt = Math.max(threshold, scrollMargin + 2);
+
+        if (element.getBoundingClientRect().top <= reachedAt) current = anchor;
       }
 
       // Bas de page : la dernière section est souvent trop courte pour
@@ -111,11 +162,22 @@ export function scrollToAnchor(id: string) {
     "(prefers-reduced-motion: reduce)",
   ).matches;
 
-  // Le décalage sous la navbar et la barre de filtres est porté par les
-  // classes scroll-mt-* des titres, pas calculé ici : une valeur en dur
-  // divergerait dès qu'on touche à la hauteur d'un des deux.
-  element.scrollIntoView({
-    behavior: prefersReducedMotion ? "auto" : "smooth",
-    block: "start",
-  });
+  pauseSpyUntilScrollStops();
+
+  // Deux images d'attente avant de défiler : le clic vient peut-être de
+  // changer la forme de la barre mobile (voir MenuFilters). Image 1 : React a
+  // mis la page à jour, et ResizeObserver publie la nouvelle hauteur de la
+  // barre. Image 2 : on défile avec la bonne marge.
+  //
+  // Le décalage sous le header et la barre est porté par les classes
+  // scroll-mt-* des titres, pas calculé ici : une valeur en dur divergerait
+  // dès qu'on touche à la hauteur d'un des deux.
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() =>
+      element.scrollIntoView({
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+        block: "start",
+      }),
+    ),
+  );
 }

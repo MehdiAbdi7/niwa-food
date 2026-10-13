@@ -4,11 +4,7 @@ import Link from "next/link";
 // en gardait sa propre copie, qui avait fini par écrire les horaires
 // autrement que la page Contact (« Lun – Jeu, Sam – Dim » contre « Samedi à
 // jeudi »).
-import {
-  OPENING_HOURS,
-  SOCIALS,
-  STORE_LOCATIONS,
-} from "@/config/locations";
+import { OPENING_HOURS, SOCIALS, STORE_LOCATIONS } from "@/config/locations";
 
 // Largeur d'AFFICHAGE de la photo, pas le poids du fichier : le navigateur
 // choisit la variante du srcset avec cette seule information, avant même
@@ -20,7 +16,7 @@ export function Contact() {
   return (
     <section
       id="contact"
-      className="relative isolate overflow-hidden px-2 sm:px-4 py-16 sm:py-20"
+      className="relative isolate overflow-hidden px-2 py-6 sm:px-4 "
     >
       <div className="mx-auto max-w-6xl rounded-4xl shadow-[0_0_25px_5px_rgba(217,169,77,0.45)] shadow-primary/30 backdrop-blur-md px-6 sm:px-2 py-6 background dark:bg-primary/30 border border-primary">
         <div className="mb-8 flex flex-col items-center gap-2 text-center sm:mb-10">

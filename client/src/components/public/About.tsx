@@ -118,7 +118,7 @@ export function About() {
     <section
       id="a-propos"
       ref={sectionRef}
-      className="relative isolate overflow-hidden contain-paint px-2 py-16 sm:px-8 sm:py-20"
+      className="relative isolate overflow-hidden contain-paint px-2 py-6 sm:px-8"
     >
       <div className="mx-auto flex flex-col lg:flex-row max-w-6xl items-center gap-8 rounded-4xl background dark:bg-primary/30 px-4 py-8 shadow-[0_0_25px_5px_rgba(217,169,77,0.45)] shadow-primary/30 backdrop-blur-2xl sm:gap-10 sm:px-8 sm:py-12  md:gap-16 border border-primary">
         <div className="flex flex-col items-center gap-4 text-center sm:text-left md:items-start">

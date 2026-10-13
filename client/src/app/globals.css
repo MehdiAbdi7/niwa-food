@@ -34,6 +34,20 @@
 
   --hero-bg-image: url("/bg-white.webp");
 
+  /* Hauteur du header public fixe (navbar + bandeau démo). La vraie valeur
+     est mesurée et écrite sur <html> par useHeightVar ; celle-ci ne sert
+     qu'avant le chargement du JS : navbar (72px) + bandeau sur une ligne
+     (~24px). Tout ce qui colle sous le header part de --sticky-top, jamais
+     d'un nombre en dur : des top-20 / top-24 calculés pour un header de 72px
+     avaient fait passer la colonne de la carte SOUS le header quand le
+     bandeau est arrivé. */
+  --header-height: 6rem;
+  --sticky-top: calc(var(--header-height) + 1rem);
+  /* Hauteur de la barre des catégories de la carte, mesurée elle aussi
+     (MenuFilters). Ne sert que sur mobile, où les titres doivent atterrir
+     sous cette barre. Valeur de repli : la barre sans sous-catégories. */
+  --menu-nav-height: 8rem;
+
   /* --- Dashboard : mêmes teintes, grammaire plus dense --- */
   /* Surfaces empilables (carte sur fond, carte sur carte) sans dépendre du glow */
   --color-surface: #ffffff;

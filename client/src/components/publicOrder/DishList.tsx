@@ -26,11 +26,15 @@ interface DishListProps {
   nav: MenuNavGroup[];
 }
 
-// Décalage réservé sous la barre de navigation fixe et, sur mobile, sous le
-// bandeau de filtres collant. Sans lui, un titre visé par une ancre se range
-// DERRIÈRE ces deux barres et le client croit avoir atterri au mauvais endroit.
-// Sur lg, le bandeau devient une colonne latérale : seule la navbar compte.
-const ANCHOR_OFFSET = "scroll-mt-52 lg:scroll-mt-28";
+// Décalage réservé sous le header fixe et, sur mobile, sous la barre des
+// catégories collée juste en dessous. Sans lui, un titre visé par une ancre se
+// range DERRIÈRE ces deux barres et le client croit avoir atterri au mauvais
+// endroit. Les deux hauteurs sont mesurées (useHeightVar), pas écrites en dur :
+// la barre mobile grandit quand des sous-catégories s'affichent.
+// Sur lg, la barre devient une colonne latérale : seul le header compte, et
+// le titre atterrit pile à l'endroit où il va coller (--sticky-top).
+const ANCHOR_OFFSET =
+  "scroll-mt-[calc(var(--sticky-top)_+_var(--menu-nav-height)_+_1rem)] lg:scroll-mt-(--sticky-top)";
 
 function SectionTitle({
   id,
@@ -46,7 +50,7 @@ function SectionTitle({
       {/* L'ancre est un repère de hauteur nulle, POSÉ AVANT le titre et non
           sur lui. Un élément sticky rapporte sa position collée, pas sa
           position dans le flux : quand on est déjà dans la section, son titre
-          est figé à 80px du haut, scrollIntoView en déduit qu'on y est et ne
+          est figé sous le header, scrollIntoView en déduit qu'on y est et ne
           défile pas. Le repère, lui, reste où il est vraiment. */}
       <span
         id={id}
@@ -56,22 +60,28 @@ function SectionTitle({
 
       {/* Collant à partir de lg uniquement. Sur mobile, le bandeau de filtres
           occupe déjà le haut de l'écran : empiler un second élément collant
-          mangerait un tiers de la hauteur utile d'un téléphone. */}
-      <div className="lg:sticky lg:top-20 lg:z-20">
-        <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-background/85 px-4 py-2.5 backdrop-blur-xl dark:bg-primary/15">
-          <h2 className="font-heading text-lg font-bold text-foreground">
+          mangerait un tiers de la hauteur utile d'un téléphone. Même hauteur
+          de collage que la colonne de gauche : les deux s'alignent. */}
+      <div className="lg:sticky lg:top-(--sticky-top) lg:z-20">
+        {/* Même fond plein que la catégorie active de la colonne
+            (bg-primary + text-on-primary) : le titre et la puce allumée se
+            répondent. text-on-primary et jamais text-foreground : en sombre,
+            seul un texte foncé atteint 4,5:1 sur ce doré (voir globals.css). */}
+        <div className="flex items-center gap-3 rounded-2xl border border-primary bg-primary px-4 py-2.5 shadow-sm">
+          <h2 className="font-heading text-lg font-bold text-on-primary">
             {label}
           </h2>
-          {/* accent-mustard-text et non primary : en sombre, le doré primary
-              sur sa propre teinte (bg-primary/15) plafonnait à 3,5:1. */}
-          <span className="tabular-nums rounded-full bg-primary/15 px-2 py-0.5 text-xs font-bold text-accent-mustard-text">
+          {/* Pastille inversée (fond on-primary, texte primary) : une teinte
+              du doré sous un texte foncé tombait à 4,1:1 en sombre. Inversée,
+              elle tient 4,8:1 en clair et 5,2:1 en sombre. */}
+          <span className="tabular-nums rounded-full bg-on-primary px-2 py-0.5 text-xs font-bold text-primary">
             {count}
           </span>
-          {/* Filet doré qui s'éteint vers la droite : reprend la lumière des
-              cadres de la page d'accueil, sans en ajouter une de plus. */}
+          {/* Filet qui s'éteint vers la droite, dans la couleur du texte : un
+              filet doré disparaîtrait sur le fond doré. */}
           <span
             aria-hidden="true"
-            className="h-px flex-1 bg-linear-to-r from-primary/50 to-transparent"
+            className="h-px flex-1 bg-linear-to-r from-on-primary/50 to-transparent"
           />
         </div>
       </div>
@@ -306,9 +316,12 @@ export function DishList({ items, nav }: DishListProps) {
                 {section.blocks.map((block) => (
                   <div key={block.key}>
                     {block.label && (
+                      // Sur lg, le titre de section est déjà collé à
+                      // --sticky-top : la sous-catégorie doit atterrir SOUS
+                      // lui (environ 3rem de titre + une respiration).
                       <p
                         id={subAnchorId(block.key)}
-                        className={`${ANCHOR_OFFSET} mb-2.5 pl-1 font-heading text-xs font-bold uppercase tracking-wider text-accent-mustard lg:scroll-mt-40`}
+                        className={`${ANCHOR_OFFSET} mb-2.5 pl-1 font-heading text-xs font-bold uppercase tracking-wider text-accent-mustard lg:scroll-mt-[calc(var(--sticky-top)_+_4.5rem)]`}
                       >
                         {block.label}
                       </p>

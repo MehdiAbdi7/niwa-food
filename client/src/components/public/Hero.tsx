@@ -32,6 +32,14 @@ const heroSlides: HeroSlide[] = [
 export function Hero() {
   return (
     <section className="background relative isolate overflow-hidden px-4 py-14 sm:px-2 sm:py-16">
+      {/* Fondu vers la couleur de fond : l'image du hero s'efface au lieu de
+          s'arrêter net sur les sections, qui sont sur fond uni. Sous le
+          contenu (z-10), il ne touche que l'image. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-linear-to-b from-transparent to-background"
+      />
+
       {/* Contenu */}
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center gap-10 pt-20 pb-10 md:grid md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] md:gap-8 md:px-4 lg:gap-20 lg:px-6">
         <div className="order-2 w-full md:order-2 md:translate-x-3 lg:translate-x-12">

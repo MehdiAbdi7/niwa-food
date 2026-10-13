@@ -63,20 +63,25 @@ function SectionTitle({
           mangerait un tiers de la hauteur utile d'un téléphone. Même hauteur
           de collage que la colonne de gauche : les deux s'alignent. */}
       <div className="lg:sticky lg:top-(--sticky-top) lg:z-20">
-        <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-background/85 px-4 py-2.5 backdrop-blur-xl dark:bg-primary/15">
-          <h2 className="font-heading text-lg font-bold text-foreground">
+        {/* Même fond plein que la catégorie active de la colonne
+            (bg-primary + text-on-primary) : le titre et la puce allumée se
+            répondent. text-on-primary et jamais text-foreground : en sombre,
+            seul un texte foncé atteint 4,5:1 sur ce doré (voir globals.css). */}
+        <div className="flex items-center gap-3 rounded-2xl border border-primary bg-primary px-4 py-2.5 shadow-sm">
+          <h2 className="font-heading text-lg font-bold text-on-primary">
             {label}
           </h2>
-          {/* accent-mustard-text et non primary : en sombre, le doré primary
-              sur sa propre teinte (bg-primary/15) plafonnait à 3,5:1. */}
-          <span className="tabular-nums rounded-full bg-primary/15 px-2 py-0.5 text-xs font-bold text-accent-mustard-text">
+          {/* Pastille inversée (fond on-primary, texte primary) : une teinte
+              du doré sous un texte foncé tombait à 4,1:1 en sombre. Inversée,
+              elle tient 4,8:1 en clair et 5,2:1 en sombre. */}
+          <span className="tabular-nums rounded-full bg-on-primary px-2 py-0.5 text-xs font-bold text-primary">
             {count}
           </span>
-          {/* Filet doré qui s'éteint vers la droite : reprend la lumière des
-              cadres de la page d'accueil, sans en ajouter une de plus. */}
+          {/* Filet qui s'éteint vers la droite, dans la couleur du texte : un
+              filet doré disparaîtrait sur le fond doré. */}
           <span
             aria-hidden="true"
-            className="h-px flex-1 bg-linear-to-r from-primary/50 to-transparent"
+            className="h-px flex-1 bg-linear-to-r from-on-primary/50 to-transparent"
           />
         </div>
       </div>

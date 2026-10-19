@@ -62,20 +62,18 @@
   --color-status-cancelled: var(--color-accent-bordeaux);
 
   /* --- Accueil « street-food pop » ---
-     Le panneau du hero inverse ses rôles d'un thème à l'autre : moutarde
-     sous une encre brune en clair (6,3:1), brun chaud sous une encre crème
-     en sombre. L'assiette prend toujours la couleur que le panneau n'a pas,
-     c'est elle qui fait ressortir le plat. */
-  --hero-panel: #e8a020;
-  --hero-ink: #3d2716;
-  --hero-plate: #fbf5ef;
+     Le hero garde les fonds d'origine (--hero-bg-image, clair et sombre).
+     L'assiette est moutarde dans les deux thèmes : c'est elle qui fait
+     ressortir le plat sur le crème comme sur le brun. Bouton principal brun
+     sous texte crème en clair (12,9:1), moutarde sous texte brun en sombre
+     (9,9:1). */
+  --hero-plate: #e8a020;
   --hero-cta: #3d2716;
   --hero-cta-ink: #fbf5ef;
   --hero-cta-edge: #1c1007;
 
   /* Éclats du terrazzo du logo. Pure décoration : jamais sous du texte, donc
-     hors des règles de contraste. Pas d'éclat moutarde en clair, il
-     disparaîtrait sur le panneau. */
+     hors des règles de contraste. */
   --chip-terracotta: #965e4c;
   --chip-bordeaux: #8b2e3a;
   --chip-blue: #5b7a96;
@@ -132,8 +130,6 @@
   --color-status-completed: #8a8580;
   --color-status-cancelled: var(--color-accent-bordeaux);
 
-  --hero-panel: #221812;
-  --hero-ink: #ebe8b8;
   --hero-plate: #e6b856;
   --hero-cta: #e6b856;
   --hero-cta-ink: #1a1310;
@@ -186,8 +182,6 @@
   --color-status-completed: var(--color-status-completed);
   --color-status-cancelled: var(--color-status-cancelled);
 
-  --color-hero-panel: var(--hero-panel);
-  --color-hero-ink: var(--hero-ink);
   --color-hero-plate: var(--hero-plate);
   --color-hero-cta: var(--hero-cta);
   --color-hero-cta-ink: var(--hero-cta-ink);

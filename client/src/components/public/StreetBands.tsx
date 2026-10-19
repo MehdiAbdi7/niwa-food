@@ -179,11 +179,11 @@ export function StreetBands() {
         className="top-[36%] -translate-y-1/2 rotate-[4deg]"
         colorClassName="bg-[#965e4c] text-[#fbf5ef] dark:bg-[#8b2e3a] dark:text-[#ebe8b8]"
       />
-      {/* Éclats couleur du panneau : moutarde sur le bandeau brun en clair,
-          brun sur le bandeau moutarde en sombre. */}
+      {/* Éclats couleur du fond de page : crème sur le bandeau brun en
+          clair, presque noir sur le bandeau moutarde en sombre. */}
       <Band
         words={MENU_WORDS}
-        chipColor="var(--hero-panel)"
+        chipColor="var(--background)"
         className="top-[58%] -translate-y-1/2 -rotate-[3deg] shadow-[0_10px_30px_-12px_rgb(0_0_0/0.5)]"
         colorClassName="bg-hero-cta text-hero-cta-ink"
       />

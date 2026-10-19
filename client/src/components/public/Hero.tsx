@@ -42,58 +42,69 @@ const HEADLINE_LINES = [
 
 export function Hero() {
   return (
-    // Le panneau commence sous le header fixe, mesuré par useHeightVar : le
-    // header est transparent en haut de page, et le logo « FOOD » en
-    // moutarde foncée ne serait pas lisible posé sur le panneau moutarde.
-    <section className="px-3 pt-[calc(var(--header-height)+0.75rem)] sm:px-4">
-      <div className="relative isolate mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-hero-panel text-hero-ink sm:rounded-[2.75rem]">
-        {/* Padding bas plus grand que le haut : les bandeaux de StreetBands
-            viennent chevaucher le bas du panneau. */}
-        <div className="mx-auto grid max-w-6xl items-center gap-8 px-5 pb-16 pt-10 sm:px-10 sm:pb-20 sm:pt-14 md:grid-cols-[1.1fr_1fr] md:gap-4 lg:px-12 lg:pb-24 lg:pt-16">
-          <div className="flex flex-col items-start gap-6">
-            <h1 className="font-heading text-[clamp(2.9rem,14vw,4.6rem)] font-bold leading-[0.88] tracking-[-0.02em] md:text-[clamp(3.6rem,7vw,5.75rem)]">
-              {/* L'espace après chaque ligne ne se voit pas (les lignes sont
-                  des blocs) mais il compte pour le texte brut : sans lui,
-                  Google et le presse-papiers liraient « tacoset pizzas ». */}
-              {HEADLINE_LINES.map((line, index) => (
-                <Fragment key={line.text}>
-                  <span
-                    className="hero-line"
-                    style={{ "--i": index, "--tilt": line.tilt } as CSSProperties}
-                  >
-                    {line.text}
-                  </span>{" "}
-                </Fragment>
-              ))}
-            </h1>
+    // Fond d'origine du site (.background, image claire ou sombre selon le
+    // thème) sous le header transparent.
+    //
+    // Marge haute FIXE, et non calculée sur --header-height : à 360 px, le
+    // bandeau démo passe sur deux lignes à l'arrivée de la police DM Sans,
+    // le header grandit de 16 px, et tout le hero descendait d'autant pendant
+    // le chargement. 136 px laissent de la place même au header le plus haut
+    // (114 px).
+    <section className="background relative isolate overflow-hidden px-5 pt-34 text-foreground sm:px-8 lg:pt-40">
+      {/* Fondu vers la couleur de fond : l'image du hero s'efface au lieu de
+          s'arrêter net sur les bandeaux et les sections, qui sont sur fond
+          uni. Sous le contenu (z-10), il ne touche que l'image. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-linear-to-b from-transparent to-background"
+      />
 
-            <p className="max-w-md text-base font-semibold leading-relaxed sm:text-lg">
-              Préparés à la commande dans nos cuisines de Kouba et Chéraga.
-              Sur place, à emporter ou livrés chez vous.
-            </p>
+      {/* Padding bas plus grand que le haut : les bandeaux de StreetBands
+          viennent chevaucher le bas du hero. */}
+      <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-8 pb-20 md:grid-cols-[1.1fr_1fr] md:gap-4 lg:pb-28">
+        <div className="flex flex-col items-start gap-6">
+          <h1 className="font-heading text-[clamp(2.5rem,11.5vw,3.9rem)] font-bold leading-[0.9] tracking-[-0.02em] md:text-[clamp(3.1rem,5.6vw,4.75rem)]">
+            {/* L'espace après chaque ligne ne se voit pas (les lignes sont
+                des blocs) mais il compte pour le texte brut : sans lui,
+                Google et le presse-papiers liraient « tacoset pizzas ». */}
+            {HEADLINE_LINES.map((line, index) => (
+              <Fragment key={line.text}>
+                <span
+                  className="hero-line"
+                  style={{ "--i": index, "--tilt": line.tilt } as CSSProperties}
+                >
+                  {line.text}
+                </span>{" "}
+              </Fragment>
+            ))}
+          </h1>
 
-            {/* En colonne sur mobile, toujours, et pas de flex-wrap : la
-                police de secours, plus large que Baloo 2, faisait passer le
-                lien à la ligne le temps du chargement, puis il remontait.
-                Toute la suite du hero sautait de 44 px (CLS 0,13). */}
-            <div className="flex flex-col items-start gap-5 pb-2 sm:flex-row sm:items-center sm:gap-7">
-              <Link
-                href="/commande"
-                className="btn-press rounded-full bg-hero-cta px-8 py-3.5 font-heading text-lg font-bold text-hero-cta-ink [--edge:var(--hero-cta-edge)] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-hero-ink"
-              >
-                Commander
-              </Link>
-              <Link
-                href="#contact"
-                className="font-heading text-lg font-bold underline decoration-2 underline-offset-4 transition-[text-decoration-thickness] hover:decoration-4 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-hero-ink"
-              >
-                Nos deux adresses
-              </Link>
-            </div>
+          <p className="max-w-md text-base font-semibold leading-relaxed sm:text-lg">
+            Préparés à la commande dans nos cuisines de Kouba et Chéraga.
+            Sur place, à emporter ou livrés chez vous.
+          </p>
+
+          {/* En colonne sur mobile, toujours, et pas de flex-wrap : la
+              police de secours, plus large que Baloo 2, faisait passer le
+              lien à la ligne le temps du chargement, puis il remontait.
+              Toute la suite du hero sautait de 44 px (CLS 0,13). */}
+          <div className="flex flex-col items-start gap-5 pb-2 sm:flex-row sm:items-center sm:gap-7">
+            <Link
+              href="/commande"
+              className="btn-press rounded-full bg-hero-cta px-8 py-3.5 font-heading text-lg font-bold text-hero-cta-ink [--edge:var(--hero-cta-edge)] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-foreground"
+            >
+              Commander
+            </Link>
+            <Link
+              href="#contact"
+              className="font-heading text-lg font-bold underline decoration-2 underline-offset-4 transition-[text-decoration-thickness] hover:decoration-4 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-foreground"
+            >
+              Nos deux adresses
+            </Link>
           </div>
-
-          <HeroCarousel slides={heroSlides} />
         </div>
+
+        <HeroCarousel slides={heroSlides} />
       </div>
     </section>
   );

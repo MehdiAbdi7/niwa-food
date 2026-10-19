@@ -40,7 +40,7 @@ const FLOATING_CHIPS: FloatingChip[] = [
   { shape: 0, color: "var(--chip-terracotta)", top: 1, left: 9, size: 13, depth: 14 },
   { shape: 3, color: "var(--chip-blue)", top: 7, left: 77, size: 10, depth: 22 },
   { shape: 4, color: "var(--chip-bordeaux)", top: 36, left: -1, size: 9, depth: 30, front: true },
-  { shape: 1, color: "var(--chip-sand)", top: 46, left: 89, size: 11, depth: 18 },
+  { shape: 1, color: "var(--chip-mustard)", top: 46, left: 89, size: 11, depth: 18 },
   { shape: 5, color: "var(--chip-olive)", top: 79, left: 5, size: 10, depth: 24 },
   { shape: 2, color: "var(--chip-terracotta)", top: 72, left: 85, size: 8, depth: 36, front: true },
   { shape: 4, color: "var(--chip-blue)", top: 86, left: 60, size: 6, depth: 40, front: true },
@@ -281,7 +281,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
                 </div>
               </div>
             ))}
-            <div className="absolute inset-[15%] rounded-full border-2 border-dashed border-hero-ink/15" />
+            <div className="absolute inset-[15%] rounded-full border-2 border-dashed border-black/15" />
           </div>
         </div>
 
@@ -348,7 +348,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
           type="button"
           onClick={goToPrev}
           aria-label="Plat précédent"
-          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-hero-ink text-hero-panel transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-hero-ink"
+          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground"
         >
           <span aria-hidden="true" className="icon-[mdi--chevron-left] text-2xl" />
         </button>
@@ -374,7 +374,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
           type="button"
           onClick={goToNext}
           aria-label="Plat suivant"
-          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-hero-ink text-hero-panel transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-hero-ink"
+          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground"
         >
           <span aria-hidden="true" className="icon-[mdi--chevron-right] text-2xl" />
         </button>

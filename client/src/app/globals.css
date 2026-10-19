@@ -636,6 +636,12 @@ button,
     animation-direction: reverse;
   }
 
+  /* Avis : immobiles tant que la copie qui fait boucler n'est pas rendue
+     (Testimonials la rend une fois la page au repos). */
+  .marquee:not([data-ready="true"]) .marquee-track {
+    animation: none;
+  }
+
   /* Survol, focus à l'intérieur ou bouton pause : l'avis qu'on lit cesse de
      filer. */
   .marquee:hover .marquee-track,

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
+import { useIsPageIdle } from "@/features/motion/useIsPageIdle";
 import { useReducedMotion } from "@/features/motion/useReducedMotion";
 import { TerrazzoChip } from "./TerrazzoChip";
 
@@ -134,36 +135,11 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   // Invisibles mais présents dans le DOM, ils étaient téléchargés tout de
   // suite : 155 Ko qui se partageaient le réseau avec la première photo,
   // l'élément LCP, et la retardaient sur mobile. Ils ne servent qu'au premier
-  // changement de plat, six secondes plus tard.
-  const [areOtherSlidesReady, setAreOtherSlidesReady] = useState(false);
-
-  useEffect(() => {
-    let idleId: number | undefined;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    // Après l'événement load, quand le navigateur souffle : la page a fini
-    // son travail utile. requestIdleCallback n'existe pas sur Safari, d'où le
-    // repli sur un simple délai.
-    const reveal = () => {
-      if ("requestIdleCallback" in window) {
-        idleId = window.requestIdleCallback(
-          () => setAreOtherSlidesReady(true),
-          { timeout: 2000 },
-        );
-      } else {
-        timeoutId = setTimeout(() => setAreOtherSlidesReady(true), 500);
-      }
-    };
-
-    if (document.readyState === "complete") reveal();
-    else window.addEventListener("load", reveal, { once: true });
-
-    return () => {
-      window.removeEventListener("load", reveal);
-      if (idleId !== undefined) window.cancelIdleCallback(idleId);
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
-    };
-  }, []);
+  // changement de plat, six secondes plus tard. Exception : un clic sur une
+  // flèche avant ce moment (hasNavigated) les rend sans attendre.
+  const isPageIdle = useIsPageIdle();
+  const [hasNavigated, setHasNavigated] = useState(false);
+  const areOtherSlidesReady = isPageIdle || hasNavigated;
 
   // Hors écran, l'assiette ne tourne pas : un changement que personne ne
   // voit, c'est un plat qu'on découvre en retard en remontant.
@@ -225,12 +201,12 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   // Un clic avant la fin du chargement doit montrer un plat, pas une
   // assiette vide : tous les plats sont alors rendus sans attendre.
   const goToNext = () => {
-    setAreOtherSlidesReady(true);
+    setHasNavigated(true);
     setTurn((value) => value + 1);
   };
 
   const goToPrev = () => {
-    setAreOtherSlidesReady(true);
+    setHasNavigated(true);
     setTurn((value) => value - 1);
   };
 

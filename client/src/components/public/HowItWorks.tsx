@@ -131,8 +131,9 @@ export function HowItWorks() {
     });
   }, []);
 
-  // Tracé de la route : au montage, puis à chaque changement de taille de
-  // la liste (rotation du téléphone, police chargée, passage en colonne).
+  // Tracé de la route : à l'approche de la section, puis à chaque changement
+  // de taille de la liste (rotation du téléphone, police chargée, passage en
+  // colonne).
   useEffect(() => {
     const list = listRef.current;
     const svg = svgRef.current;
@@ -190,9 +191,25 @@ export function HowItWorks() {
       render(progressRef.current);
     };
 
-    const observer = new ResizeObserver(layout);
-    observer.observe(list);
-    return () => observer.disconnect();
+    // Le tracé coûte : mesure des pastilles (qui force un calcul de mise en
+    // page) et 200 points relevés sur la route. Fait au montage, il pesait
+    // sur le chargement de l'accueil pour une section loin sous la ligne de
+    // flottaison. Il attend donc que la section approche (un écran avant).
+    const resizeObserver = new ResizeObserver(layout);
+    const nearObserver = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        resizeObserver.observe(list);
+        nearObserver.disconnect();
+      },
+      { rootMargin: "100% 0px" },
+    );
+    nearObserver.observe(list);
+
+    return () => {
+      nearObserver.disconnect();
+      resizeObserver.disconnect();
+    };
   }, [render]);
 
   // Animations réduites : la route est tracée d'emblée, toutes les étapes

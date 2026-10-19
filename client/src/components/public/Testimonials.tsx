@@ -2,6 +2,8 @@
 
 import { useState, type CSSProperties } from "react";
 import { DEMO_MODE } from "@/config/site";
+import { useIsPageIdle } from "@/features/motion/useIsPageIdle";
+import { useReducedMotion } from "@/features/motion/useReducedMotion";
 
 interface Testimonial {
   name: string;
@@ -125,10 +127,18 @@ interface ReviewRowProps {
   reverse?: boolean;
   /** Rangée décorative : masquée aux lecteurs d'écran et sans animations. */
   extra?: boolean;
+  /** Rend la seconde moitié de la piste, celle qui fait boucler. */
+  withCopy: boolean;
   duration: string;
 }
 
-function ReviewRow({ items, reverse = false, extra = false, duration }: ReviewRowProps) {
+function ReviewRow({
+  items,
+  reverse = false,
+  extra = false,
+  withCopy,
+  duration,
+}: ReviewRowProps) {
   // La piste contient la liste deux fois et glisse de -50 % en boucle. Le
   // pr-5 de chaque moitié tient lieu d'espace entre elles : un gap sur la
   // piste ajouterait un demi-espace au trajet, et la boucle sauterait.
@@ -151,11 +161,13 @@ function ReviewRow({ items, reverse = false, extra = false, duration }: ReviewRo
             <ReviewCard key={testimonial.name} testimonial={testimonial} index={index} />
           ))}
         </div>
-        <div aria-hidden="true" className="marquee-copy marquee-half flex shrink-0 gap-5 pr-5">
-          {items.map((testimonial, index) => (
-            <ReviewCard key={testimonial.name} testimonial={testimonial} index={index} />
-          ))}
-        </div>
+        {withCopy && (
+          <div aria-hidden="true" className="marquee-copy marquee-half flex shrink-0 gap-5 pr-5">
+            {items.map((testimonial, index) => (
+              <ReviewCard key={testimonial.name} testimonial={testimonial} index={index} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -169,9 +181,16 @@ function ReviewRow({ items, reverse = false, extra = false, duration }: ReviewRo
  * bouton pause : un contenu qui bouge tout seul plus de cinq secondes doit
  * pouvoir être arrêté (WCAG 2.2.2). Avec les animations réduites, il n'y a
  * plus de défilement du tout : les six avis se rangent en grille.
+ *
+ * Seule la première liste est rendue au chargement : copies et seconde
+ * rangée ajoutent dix-huit cartes, rendues une fois la page au repos, et
+ * jamais avec les animations réduites, où elles ne serviraient à rien.
  */
 export function Testimonials() {
   const [isPaused, setIsPaused] = useState(false);
+  const isPageIdle = useIsPageIdle();
+  const prefersReducedMotion = useReducedMotion();
+  const isLooping = isPageIdle && !prefersReducedMotion;
 
   return (
     <section id="avis">
@@ -211,12 +230,24 @@ export function Testimonials() {
         </div>
       </div>
 
+      {/* data-ready : tant que la copie n'est pas rendue, la piste reste
+          immobile (globals.css). À -50 %, une piste d'une seule moitié
+          sauterait au bout de son trajet. */}
       <div
         className="marquee mt-8 flex flex-col sm:mt-10"
         data-paused={isPaused}
+        data-ready={isLooping}
       >
-        <ReviewRow items={TESTIMONIALS} duration="70s" />
-        <ReviewRow items={SECOND_ROW} reverse extra duration="80s" />
+        <ReviewRow items={TESTIMONIALS} withCopy={isLooping} duration="70s" />
+        {isLooping && (
+          <ReviewRow
+            items={SECOND_ROW}
+            reverse
+            extra
+            withCopy
+            duration="80s"
+          />
+        )}
       </div>
     </section>
   );

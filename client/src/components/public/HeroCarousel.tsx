@@ -37,25 +37,66 @@ interface FloatingChip {
 // Les éclats proches (depth élevé) bougent plus que les lointains, comme
 // quand on bouge la tête devant une vitrine.
 const FLOATING_CHIPS: FloatingChip[] = [
-  { shape: 0, color: "var(--chip-terracotta)", top: 1, left: 9, size: 13, depth: 14 },
-  { shape: 3, color: "var(--chip-blue)", top: 7, left: 77, size: 10, depth: 22 },
-  { shape: 4, color: "var(--chip-bordeaux)", top: 36, left: -1, size: 9, depth: 30, front: true },
-  { shape: 1, color: "var(--chip-mustard)", top: 46, left: 89, size: 11, depth: 18 },
-  { shape: 5, color: "var(--chip-olive)", top: 79, left: 5, size: 10, depth: 24 },
-  { shape: 2, color: "var(--chip-terracotta)", top: 72, left: 85, size: 8, depth: 36, front: true },
-  { shape: 4, color: "var(--chip-blue)", top: 86, left: 60, size: 6, depth: 40, front: true },
+  {
+    shape: 0,
+    color: "var(--chip-terracotta)",
+    top: 1,
+    left: 9,
+    size: 13,
+    depth: 14,
+  },
+  {
+    shape: 3,
+    color: "var(--chip-blue)",
+    top: 7,
+    left: 77,
+    size: 10,
+    depth: 22,
+  },
+  {
+    shape: 4,
+    color: "var(--chip-bordeaux)",
+    top: 36,
+    left: -1,
+    size: 9,
+    depth: 30,
+    front: true,
+  },
+  {
+    shape: 1,
+    color: "var(--chip-mustard)",
+    top: 46,
+    left: 89,
+    size: 11,
+    depth: 18,
+  },
+  {
+    shape: 5,
+    color: "var(--chip-olive)",
+    top: 79,
+    left: 5,
+    size: 10,
+    depth: 24,
+  },
+  {
+    shape: 2,
+    color: "var(--chip-terracotta)",
+    top: 72,
+    left: 85,
+    size: 8,
+    depth: 36,
+    front: true,
+  },
+  {
+    shape: 4,
+    color: "var(--chip-blue)",
+    top: 86,
+    left: 60,
+    size: 6,
+    depth: 40,
+    front: true,
+  },
 ];
-
-// Le bord de l'assiette reprend le cercle de terrazzo du logo. Chaque éclat
-// est posé en haut d'un calque pivoté de `angle` : pas de trigonométrie, et
-// rien qui puisse différer entre le rendu serveur et le navigateur.
-const RIM_COLORS = [
-  "var(--chip-terracotta)",
-  "var(--chip-blue)",
-  "var(--chip-bordeaux)",
-  "var(--chip-olive)",
-];
-const RIM_ANGLES = [0, 31, 70, 104, 140, 178, 213, 250, 287, 325];
 
 function chipStyle(chip: FloatingChip, index: number): CSSProperties {
   // Point de départ du jaillissement : le centre de la scène, exprimé dans
@@ -105,9 +146,9 @@ interface HeroCarouselProps {
 }
 
 /**
- * Les plats posés sur une assiette qui tourne.
+ * Les plats du hero, qui tournent dans le cercle doré.
  *
- * Les plats sont disposés en cercle autour d'un axe placé sous l'assiette,
+ * Les plats sont disposés en cercle autour d'un axe placé sous la scène,
  * un tous les 360/n degrés. Changer de plat, c'est faire tourner tout le
  * cercle d'un cran : l'ancien plat part en arc d'un côté pendant que le
  * suivant arrive de l'autre.
@@ -141,7 +182,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   const [hasNavigated, setHasNavigated] = useState(false);
   const areOtherSlidesReady = isPageIdle || hasNavigated;
 
-  // Hors écran, l'assiette ne tourne pas : un changement que personne ne
+  // Hors écran, les plats ne tournent pas : un changement que personne ne
   // voit, c'est un plat qu'on découvre en retard en remontant.
   useEffect(() => {
     const stage = stageRef.current;
@@ -172,7 +213,8 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage || prefersReducedMotion) return;
-    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches)
+      return;
 
     let frameId = 0;
     let pointerX = 0;
@@ -199,7 +241,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   }, [prefersReducedMotion]);
 
   // Un clic avant la fin du chargement doit montrer un plat, pas une
-  // assiette vide : tous les plats sont alors rendus sans attendre.
+  // cercle vide : tous les plats sont alors rendus sans attendre.
   const goToNext = () => {
     setHasNavigated(true);
     setTurn((value) => value + 1);
@@ -232,7 +274,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
       aria-roledescription="carrousel"
       aria-label="Quelques plats de la carte"
       // Survol à la souris ou focus clavier dans le carrousel : on regarde,
-      // l'assiette attend.
+      // les plats attendent.
       onPointerEnter={(event) => {
         if (event.pointerType === "mouse") isPaused.current = true;
       }}
@@ -245,7 +287,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
       onBlur={() => {
         isPaused.current = false;
       }}
-      className="mx-auto flex w-full max-w-[22rem] flex-col items-center sm:max-w-[28rem] lg:max-w-[31rem]"
+      className="mx-auto flex w-full max-w-88 flex-col items-center sm:max-w-md lg:max-w-124"
     >
       <div
         ref={stageRef}
@@ -253,36 +295,16 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
         onTouchEnd={handleTouchEnd}
         className="relative aspect-square w-full"
       >
-        {/* Assiette. Calque extérieur : parallaxe inverse, très faible.
-            Calque intérieur : rotation d'un cran à chaque plat. */}
+        {/* Le cercle d'origine du hero : dégradé primary qui monte du bas et
+            halo doré, aux couleurs de la marque dans les deux thèmes. Il ne
+            tourne pas (un dégradé qui pivote se verrait), seuls les plats
+            tournent. Parallaxe inverse, très faible. */}
         <div
           aria-hidden="true"
           className="hero-chip absolute inset-[9%]"
           style={{ "--depth": -6 } as CSSProperties}
         >
-          <div
-            className="hero-plate relative h-full w-full rounded-full bg-hero-plate shadow-[inset_0_-12px_0_rgb(0_0_0/0.07)]"
-            style={{ transform: `rotate(${-turn * stepDeg}deg)` }}
-          >
-            {RIM_ANGLES.map((angle, index) => (
-              <div
-                key={angle}
-                className="absolute inset-0"
-                style={{ transform: `rotate(${angle}deg)` }}
-              >
-                <div
-                  className="absolute left-[46.5%] top-[3.5%] h-[7%] w-[7%]"
-                  style={{ transform: `rotate(${index * 47}deg)` }}
-                >
-                  <TerrazzoChip
-                    shape={index}
-                    color={RIM_COLORS[index % RIM_COLORS.length]}
-                  />
-                </div>
-              </div>
-            ))}
-            <div className="absolute inset-[15%] rounded-full border-2 border-dashed border-black/15" />
-          </div>
+          <div className="h-full w-full rounded-full bg-linear-to-t from-primary/50 via-transparent to-transparent shadow-[0_0_30px_5px_rgba(217,169,77,0.45)] shadow-primary" />
         </div>
 
         {/* Ombre de contact sous le plat : elle s'étale à l'impact. */}
@@ -341,7 +363,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
         <FloatingChips front />
       </div>
 
-      {/* Commandes sous l'assiette : sur un écran de 360 px, posées sur la
+      {/* Commandes sous le cercle : sur un écran de 360 px, posées sur la
           scène, elles masquaient le bord des plats. */}
       <div className="mt-2 flex w-full items-center justify-between gap-3">
         <button
@@ -350,7 +372,10 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
           aria-label="Plat précédent"
           className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground"
         >
-          <span aria-hidden="true" className="icon-[mdi--chevron-left] text-2xl" />
+          <span
+            aria-hidden="true"
+            className="icon-[mdi--chevron-left] text-2xl"
+          />
         </button>
 
         <div className="relative h-11 min-w-0 flex-1">
@@ -376,7 +401,10 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
           aria-label="Plat suivant"
           className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground"
         >
-          <span aria-hidden="true" className="icon-[mdi--chevron-right] text-2xl" />
+          <span
+            aria-hidden="true"
+            className="icon-[mdi--chevron-right] text-2xl"
+          />
         </button>
       </div>
     </div>

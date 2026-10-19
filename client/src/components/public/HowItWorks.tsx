@@ -225,13 +225,15 @@ export function HowItWorks() {
   });
 
   return (
-    <section id="comment-ca-marche" className="px-3 sm:px-4">
-      <div className="mx-auto max-w-7xl rounded-[2rem] bg-block px-5 py-14 text-block-ink sm:rounded-[2.75rem] sm:px-10 sm:py-20">
+    <section id="comment-ca-marche" className="px-4 sm:px-8">
+      {/* Le conteneur d'origine : fond du hero (.background, clair ou
+          sombre), bordure primary et halo doré. */}
+      <div className="mx-auto max-w-6xl rounded-4xl border border-primary background px-5 py-12 text-foreground shadow-[0_0_25px_5px_rgba(217,169,77,0.45)] shadow-primary/30 sm:px-10 sm:py-16 dark:bg-primary/30">
         <div className="mx-auto max-w-6xl">
           <h2 className="font-heading text-[2.6rem] font-bold leading-[0.95] tracking-[-0.01em] sm:text-6xl">
             De l&apos;écran à votre table
           </h2>
-          <p className="mt-3 max-w-md text-base text-block-muted sm:text-lg">
+          <p className="mt-3 max-w-md text-base text-foreground/80 sm:text-lg">
             Quatre étapes, et votre commande arrive encore chaude.
           </p>
 
@@ -251,13 +253,13 @@ export function HowItWorks() {
                 strokeWidth={3}
                 strokeLinecap="round"
                 strokeDasharray="2 12"
-                className="text-block-muted/45"
+                className="text-foreground/30"
               />
               {/* ...et le trajet parcouru, plein, par-dessus. */}
               <path
                 ref={traceRef}
                 fill="none"
-                stroke="var(--chip-mustard)"
+                stroke="var(--color-primary)"
                 strokeWidth={5}
                 strokeLinecap="round"
                 pathLength={1}
@@ -274,7 +276,7 @@ export function HowItWorks() {
             <div
               ref={scooterRef}
               aria-hidden="true"
-              className="pointer-events-none absolute left-0 top-0 z-0 text-5xl text-(--chip-mustard) opacity-0 drop-shadow-[0_4px_0_rgb(0_0_0/0.35)]"
+              className="pointer-events-none absolute left-0 top-0 z-0 text-5xl text-primary opacity-0 drop-shadow-[0_4px_0_rgb(0_0_0/0.25)]"
             >
               <span className="icon-[mdi--moped] block" />
             </div>
@@ -289,7 +291,7 @@ export function HowItWorks() {
                       lieu de la traverser. */}
                   <span
                     data-road-dot
-                    className="road-dot flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-block-muted/60 bg-block text-block-muted"
+                    className="road-dot flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-primary/60 bg-background text-primary"
                   >
                     <span
                       aria-hidden="true"
@@ -302,14 +304,14 @@ export function HowItWorks() {
                         annonce déjà le rang. */}
                     <p
                       aria-hidden="true"
-                      className="font-heading text-sm font-bold text-block-muted"
+                      className="font-heading text-sm font-bold text-foreground/75"
                     >
                       Étape {index + 1}
                     </p>
                     <h3 className="font-heading text-2xl font-bold leading-tight">
                       {step.title}
                     </h3>
-                    <p className="mt-1.5 max-w-xs leading-relaxed text-block-muted md:mx-auto">
+                    <p className="mt-1.5 max-w-xs leading-relaxed text-foreground/80 md:mx-auto">
                       {step.description}
                     </p>
                   </div>

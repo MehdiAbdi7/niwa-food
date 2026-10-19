@@ -30,10 +30,10 @@ function BandWords({ words, chipColor }: { words: string[]; chipColor: string })
   return words.map((word, index) => (
     <span
       key={word}
-      className="flex shrink-0 items-center gap-5 pr-5 sm:gap-7 sm:pr-7"
+      className="flex shrink-0 items-center gap-4 pr-4 sm:gap-6 sm:pr-6"
     >
       {word}
-      <span className="block h-6 w-6 sm:h-8 sm:w-8">
+      <span className="block h-5 w-5 sm:h-6 sm:w-6">
         <TerrazzoChip shape={index} color={chipColor} />
       </span>
     </span>
@@ -68,10 +68,10 @@ function Band({
   // dépassaient.
   return (
     <div
-      className={`absolute inset-x-[-4%] font-heading text-3xl font-bold leading-none sm:text-5xl ${className}`}
+      className={`absolute inset-x-[-4%] font-heading text-2xl font-bold leading-none sm:text-4xl ${className}`}
     >
       <div
-        className={`marquee-track flex w-max py-3 sm:py-4 ${colorClassName}`}
+        className={`marquee-track flex w-max py-2.5 sm:py-3 ${colorClassName}`}
         data-direction={reverse ? "reverse" : undefined}
         style={{ "--marquee-duration": "48s" } as CSSProperties}
       >
@@ -168,7 +168,7 @@ export function StreetBands() {
     <div
       ref={rootRef}
       aria-hidden="true"
-      className="relative z-10 -mt-10 h-44 overflow-x-clip sm:-mt-14 sm:h-56"
+      className="relative z-10 -mt-10 h-36 overflow-x-clip sm:-mt-14 sm:h-44"
     >
       {/* Couleurs en dur et non jetons du thème : chaque paire a été
           vérifiée pour ce seul usage (4,85:1 en clair, 6,6:1 en sombre). */}
@@ -185,7 +185,7 @@ export function StreetBands() {
         words={MENU_WORDS}
         chipColor="var(--background)"
         className="top-[58%] -translate-y-1/2 -rotate-[3deg] shadow-[0_10px_30px_-12px_rgb(0_0_0/0.5)]"
-        colorClassName="bg-hero-cta text-hero-cta-ink"
+        colorClassName="bg-band text-band-ink"
       />
     </div>
   );

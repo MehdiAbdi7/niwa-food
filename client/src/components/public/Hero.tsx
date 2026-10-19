@@ -89,11 +89,17 @@ export function Hero() {
               lien à la ligne le temps du chargement, puis il remontait.
               Toute la suite du hero sautait de 44 px (CLS 0,13). */}
           <div className="flex flex-col items-start gap-5 pb-2 sm:flex-row sm:items-center sm:gap-7">
+            {/* Couleurs du bouton d'origine (primary, primary-dark en
+                sombre) : 4,85:1 en clair, 5,6:1 en sombre. */}
             <Link
               href="/commande"
-              className="btn-press rounded-full bg-hero-cta px-8 py-3.5 font-heading text-lg font-bold text-hero-cta-ink [--edge:var(--hero-cta-edge)] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-foreground"
+              className="btn-press inline-flex items-center gap-3 rounded-full bg-primary px-6 py-3.5 text-lg font-bold text-background [--edge:#5e3a2e] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-foreground dark:bg-primary-dark dark:text-foreground dark:[--edge:#3f2c03]"
             >
               Commander
+              <span
+                aria-hidden="true"
+                className="icon-[line-md--arrow-right-circle-twotone] text-2xl"
+              />
             </Link>
             <Link
               href="#contact"

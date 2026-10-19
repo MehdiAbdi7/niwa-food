@@ -2,7 +2,6 @@
 
 import { configureStore } from "@reduxjs/toolkit";
 import themeReducer from "../features/theme/themeSlice";
-import heroCarouselReducer from "../features/heroCarousel/heroCarouselSlice";
 import navbarReducer from "../features/navbar/navbarSlice";
 import testimonialsReducer from "../features/testimonials/testimonialsSlice";
 import authReducer from "../features/auth/authSlice";
@@ -17,7 +16,6 @@ import { socketMiddleware } from "@/middlewares/socketMiddleware";
 export const store = configureStore({
   reducer: {
     theme: themeReducer,
-    heroCarousel: heroCarouselReducer,
     navbar: navbarReducer,
     testimonials: testimonialsReducer,
     auth: authReducer,

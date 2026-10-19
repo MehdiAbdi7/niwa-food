@@ -1,3 +1,4 @@
+import { Fragment, type CSSProperties } from "react";
 import Link from "next/link";
 import { HeroCarousel, type HeroSlide } from "./HeroCarousel";
 
@@ -29,52 +30,69 @@ const heroSlides: HeroSlide[] = [
   },
 ];
 
+// Une ligne par étage : le titre s'empile comme un burger au chargement
+// (keyframes hero-line-land, globals.css). L'inclinaison de départ alterne
+// pour que chaque étage ait l'air posé à la main.
+const HEADLINE_LINES = [
+  { text: "Burgers,", tilt: "-6deg" },
+  { text: "tacos", tilt: "5deg" },
+  { text: "et pizzas,", tilt: "-4deg" },
+  { text: "faits minute.", tilt: "3deg" },
+];
+
 export function Hero() {
   return (
-    <section className="background relative isolate overflow-hidden px-4 py-14 sm:px-2 sm:py-16">
-      {/* Fondu vers la couleur de fond : l'image du hero s'efface au lieu de
-          s'arrêter net sur les sections, qui sont sur fond uni. Sous le
-          contenu (z-10), il ne touche que l'image. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-linear-to-b from-transparent to-background"
-      />
-
-      {/* Contenu */}
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center gap-10 pt-20 pb-10 md:grid md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] md:gap-8 md:px-4 lg:gap-20 lg:px-6">
-        <div className="order-2 w-full md:order-2 md:translate-x-3 lg:translate-x-12">
-          <HeroCarousel slides={heroSlides} />
-        </div>
-
-        <div className="order-1 flex flex-col items-center justify-between md:order-1 md:items-start">
-          {/* Texte avec stagger */}
-          <div className="flex max-w-2xl flex-col items-center gap-5 text-center md:items-start md:text-left">
-            <span className="animate-[slideInLeft_0.6s_ease-out_0.1s_both] font-heading text-md md:text-lg font-bold uppercase tracking-wide text-accent-green">
-              Fast-food fait maison
-            </span>
-
-            <h1 className="animate-[slideInLeft_0.6s_ease-out_0.2s_both] font-heading text-4xl font-bold leading-[1.08] text-foreground sm:text-5xl lg:text-6xl">
-              Commandez vos
-              <br /> <span className="text-primary">plats préférés</span>
-              <br /> en toute simplicité
+    // Le panneau commence sous le header fixe, mesuré par useHeightVar : le
+    // header est transparent en haut de page, et le logo « FOOD » en
+    // moutarde foncée ne serait pas lisible posé sur le panneau moutarde.
+    <section className="px-3 pt-[calc(var(--header-height)+0.75rem)] sm:px-4">
+      <div className="relative isolate mx-auto max-w-7xl overflow-hidden rounded-[2rem] bg-hero-panel text-hero-ink sm:rounded-[2.75rem]">
+        {/* Padding bas plus grand que le haut : les bandeaux de StreetBands
+            viennent chevaucher le bas du panneau. */}
+        <div className="mx-auto grid max-w-6xl items-center gap-8 px-5 pb-16 pt-10 sm:px-10 sm:pb-20 sm:pt-14 md:grid-cols-[1.1fr_1fr] md:gap-4 lg:px-12 lg:pb-24 lg:pt-16">
+          <div className="flex flex-col items-start gap-6">
+            <h1 className="font-heading text-[clamp(2.9rem,14vw,4.6rem)] font-bold leading-[0.88] tracking-[-0.02em] md:text-[clamp(3.6rem,7vw,5.75rem)]">
+              {/* L'espace après chaque ligne ne se voit pas (les lignes sont
+                  des blocs) mais il compte pour le texte brut : sans lui,
+                  Google et le presse-papiers liraient « tacoset pizzas ». */}
+              {HEADLINE_LINES.map((line, index) => (
+                <Fragment key={line.text}>
+                  <span
+                    className="hero-line"
+                    style={{ "--i": index, "--tilt": line.tilt } as CSSProperties}
+                  >
+                    {line.text}
+                  </span>{" "}
+                </Fragment>
+              ))}
             </h1>
 
-            <p className="animate-[slideInLeft_0.6s_ease-out_0.3s_both] mx-auto max-w-lg font-semibold leading-relaxed text-foreground md:mx-0">
-              <span className="text-lg  text-accent-green">
-                Tacos, pizzas, burgers et salades{" "}
-              </span>
-              préparés minute, 100% faits maison. Sur place, à emporter, ou
-              livrés directement chez vous.
+            <p className="max-w-md text-base font-semibold leading-relaxed sm:text-lg">
+              Préparés à la commande dans nos cuisines de Kouba et Chéraga.
+              Sur place, à emporter ou livrés chez vous.
             </p>
 
-            <Link
-              href="/commande"
-              className="animate-[slideInLeft_0.6s_ease-out_0.4s_both] my-4 inline-flex w-fit items-center gap-3 rounded-full bg-primary px-5 py-3 font-bold text-background transition-all duration-300 ease-in-out hover:scale-105 hover:bg-accent-slate dark:bg-primary-dark dark:text-foreground"
-            >
-              Passer votre commande
-              <span className="icon-[line-md--arrow-right-circle-twotone] text-2xl" />
-            </Link>
+            {/* En colonne sur mobile, toujours, et pas de flex-wrap : la
+                police de secours, plus large que Baloo 2, faisait passer le
+                lien à la ligne le temps du chargement, puis il remontait.
+                Toute la suite du hero sautait de 44 px (CLS 0,13). */}
+            <div className="flex flex-col items-start gap-5 pb-2 sm:flex-row sm:items-center sm:gap-7">
+              <Link
+                href="/commande"
+                className="btn-press rounded-full bg-hero-cta px-8 py-3.5 font-heading text-lg font-bold text-hero-cta-ink [--edge:var(--hero-cta-edge)] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-hero-ink"
+              >
+                Commander
+              </Link>
+              <Link
+                href="#contact"
+                className="font-heading text-lg font-bold underline decoration-2 underline-offset-4 transition-[text-decoration-thickness] hover:decoration-4 focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-hero-ink"
+              >
+                Nos deux adresses
+              </Link>
+            </div>
           </div>
+
+          <HeroCarousel slides={heroSlides} />
         </div>
       </div>
     </section>

@@ -194,8 +194,7 @@ export function Testimonials() {
 
   return (
     <section id="avis">
-      {/* En-tête dans la colonne commune aux autres sections ; les
-          rangées d'avis, elles, vont d'un bord à l'autre de l'écran. */}
+      {/* En-tête dans la colonne commune aux autres sections. */}
       <div className="px-4 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -233,21 +232,25 @@ export function Testimonials() {
       {/* data-ready : tant que la copie n'est pas rendue, la piste reste
           immobile (globals.css). À -50 %, une piste d'une seule moitié
           sauterait au bout de son trajet. */}
-      <div
-        className="marquee mt-8 flex flex-col sm:mt-10"
-        data-paused={isPaused}
-        data-ready={isLooping}
-      >
-        <ReviewRow items={TESTIMONIALS} withCopy={isLooping} duration="70s" />
-        {isLooping && (
-          <ReviewRow
-            items={SECOND_ROW}
-            reverse
-            extra
-            withCopy
-            duration="80s"
-          />
-        )}
+      {/* Même largeur que les best-sellers (max-w-6xl) : d'un bord à
+          l'autre de l'écran, trop d'avis défilaient en même temps. */}
+      <div className="px-4 sm:px-8">
+        <div
+          className="marquee mx-auto mt-8 flex max-w-6xl flex-col sm:mt-10"
+          data-paused={isPaused}
+          data-ready={isLooping}
+        >
+          <ReviewRow items={TESTIMONIALS} withCopy={isLooping} duration="70s" />
+          {isLooping && (
+            <ReviewRow
+              items={SECOND_ROW}
+              reverse
+              extra
+              withCopy
+              duration="80s"
+            />
+          )}
+        </div>
       </div>
     </section>
   );

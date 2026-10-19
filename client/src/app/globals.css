@@ -525,12 +525,14 @@ button,
   color: var(--color-on-primary);
 }
 
-/* --- À propos : la vidéo grandit ----------------------------------------
-   --p (0 à 1) est posée par About au défilement. Sa valeur par défaut est 1 :
-   sans JavaScript, ou avec les animations réduites, la vidéo est
-   directement à sa taille finale. */
+/* --- À propos : la vidéo se pose ----------------------------------------
+   --p (0 à 1) est posée par About au défilement : la vidéo arrive un peu
+   plus petite et de travers, puis se redresse à sa place. Valeur par défaut
+   1 : sans JavaScript, ou avec les animations réduites, elle est
+   directement dans son état final. */
 .scene-video {
-  transform: scale(calc(0.42 + 0.58 * var(--p, 1)));
+  transform: scale(calc(0.8 + 0.2 * var(--p, 1)))
+    rotate(calc((1 - var(--p, 1)) * -6deg));
 }
 
 .scene-sticker {

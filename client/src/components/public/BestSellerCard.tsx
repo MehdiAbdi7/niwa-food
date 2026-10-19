@@ -9,12 +9,9 @@ import {
 } from "@/features/motion/pointerEffects";
 import { formatDA } from "@/lib/format";
 import type { MenuItem } from "@/types/menuItem";
-import { TerrazzoChip } from "./TerrazzoChip";
 
 interface BestSellerCardProps {
   item: MenuItem;
-  /** Rang dans la sélection : choisit la couleur de la vignette. */
-  index: number;
   /** Copie latérale du carrousel : hors du parcours clavier. */
   isDuplicate?: boolean;
 }
@@ -26,21 +23,11 @@ interface BestSellerCardProps {
 const CARD_IMAGE_SIZES =
   "(max-width: 640px) 60vw, (max-width: 1024px) 36vw, 260px";
 
-const TILE_COUNT = 4;
-const CHIP_COLORS = [
-  "var(--chip-bordeaux)",
-  "var(--chip-blue)",
-  "var(--chip-terracotta)",
-  "var(--chip-olive)",
-];
-
 export function BestSellerCard({
   item,
-  index,
   isDuplicate = false,
 }: BestSellerCardProps) {
   const { openProduct } = useCart();
-  const tile = (index % TILE_COUNT) + 1;
 
   const lowestPrice = item.variants.length
     ? Math.min(...item.variants.map((variant) => variant.price))
@@ -80,16 +67,8 @@ export function BestSellerCard({
           la carte, et les photos perdent leur alignement. Pas d'overflow
           hidden : au survol, le plat sort du cadre. */}
       <div
-        className="relative aspect-square w-full shrink-0 rounded-[1.35rem]"
-        style={{ backgroundColor: `var(--tile-${tile})` }}
+        className="relative aspect-square w-full shrink-0 rounded-[1.35rem] bg-primary/20"
       >
-        <span aria-hidden="true" className="absolute left-3 top-3 h-6 w-6">
-          <TerrazzoChip
-            shape={index}
-            color={CHIP_COLORS[index % CHIP_COLORS.length]}
-          />
-        </span>
-
         {/* Ombre posée sous le plat : un dégradé, bien moins coûteux qu'un
             filtre drop-shadow sur vingt-sept images détourées. Elle se
             resserre quand le plat s'élève. */}

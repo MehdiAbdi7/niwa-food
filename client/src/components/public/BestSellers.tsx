@@ -134,7 +134,7 @@ export function BestSellers() {
                   lecteur d'écran ne doit entendre la liste qu'une seule fois,
                   et la tabulation ne doit pas traverser 27 liens. */}
               {[0, 1, 2].map((copy) =>
-                bestSellers.map((item, index) => (
+                bestSellers.map((item) => (
                   <div
                     key={`${copy}-${item._id}`}
                     aria-hidden={copy !== 1}
@@ -142,7 +142,6 @@ export function BestSellers() {
                   >
                     <BestSellerCard
                       item={item}
-                      index={index}
                       isDuplicate={copy !== 1}
                     />
                   </div>

@@ -53,7 +53,7 @@ Ces quatre espaces sont le miroir exact du cloisonnement de l'API : le front mas
 
 ### 🌐 Site public
 
-- **Vitrine animée** — accueil « street-food pop » : titre qui s'empile et plat qui tombe sur une assiette tournante au chargement, bandeaux qui accélèrent avec le défilement, route dessinée au scroll, vidéo qui grandit en restant épinglée, avis en défilement continu. Animations CSS natives (ressorts en `linear()`, API Web Animations), sans bibliothèque, toutes coupées par `prefers-reduced-motion`. Best-sellers en défilement infini, décodeur du menu (chaque plat porte le nom d'une référence moto).
+- **Vitrine animée** — accueil « street-food pop » : titre qui s'empile et plat qui tombe dans le cercle doré au chargement, plats qui tournent autour d'un axe, bandeaux qui accélèrent avec le défilement, route dessinée au scroll, vidéo qui se pose en entrant dans l'écran, avis en défilement continu, décors dans les marges dès xl. Animations CSS natives (ressorts en `linear()`, API Web Animations), sans bibliothèque, toutes coupées par `prefers-reduced-motion`. Best-sellers en défilement infini, décodeur du menu (chaque plat porte le nom d'une référence moto).
 - **Carte complète** — affichage intégral, sans filtrage destructif : navigation par scroll-spy, sections et sous-sections, recherche par nom **ou par ingrédient**.
 - **Fiche produit** — variantes, formules (Menu / Menu Kids), groupes d'extras configurables, retrait d'ingrédients, prix recalculé en direct.
 - **Panier persistant** — `localStorage` versionné, TTL 24 h, **réconcilié contre le menu réel** à chaque montage avec notification des articles retirés.

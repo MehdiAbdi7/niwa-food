@@ -53,7 +53,7 @@ Ces quatre espaces sont le miroir exact du cloisonnement de l'API : le front mas
 
 ### 🌐 Site public
 
-- **Vitrine animée** — hero avec carrousel Redux, best-sellers en défilement infini, témoignages, décodeur du menu (chaque plat porte le nom d'une référence moto), reveal au scroll respectant `prefers-reduced-motion`.
+- **Vitrine animée** — accueil « street-food pop » : titre qui s'empile et plat qui tombe sur une assiette tournante au chargement, bandeaux qui accélèrent avec le défilement, route dessinée au scroll, vidéo qui grandit en restant épinglée, avis en défilement continu. Animations CSS natives (ressorts en `linear()`, API Web Animations), sans bibliothèque, toutes coupées par `prefers-reduced-motion`. Best-sellers en défilement infini, décodeur du menu (chaque plat porte le nom d'une référence moto).
 - **Carte complète** — affichage intégral, sans filtrage destructif : navigation par scroll-spy, sections et sous-sections, recherche par nom **ou par ingrédient**.
 - **Fiche produit** — variantes, formules (Menu / Menu Kids), groupes d'extras configurables, retrait d'ingrédients, prix recalculé en direct.
 - **Panier persistant** — `localStorage` versionné, TTL 24 h, **réconcilié contre le menu réel** à chaque montage avec notification des articles retirés.
@@ -193,7 +193,7 @@ Redux Toolkit
 ├── publicCart                      ─ panier client (+ listener de persistance)
 ├── menuBrowse                      ─ recherche & section active du scroll-spy
 ├── storeScope                      ─ magasin actif (admin)
-├── theme / navbar / heroCarousel   ─ UI
+├── theme / navbar                 ─ UI
 └── toast                           ─ notifications
 ```
 
@@ -354,7 +354,7 @@ src/
 │   ├── auth/  orders/  menu/  tables/  history/
 │   ├── publicOrder/               # cartSlice, browseSlice, scroll-spy
 │   ├── delivery/  storeSettings/  store/  theme/  toast/
-│   └── carousel/  navbar/  reveal/  heroCarousel/  testimonials/
+│   └── carousel/  navbar/  motion/  # motion : défilement, souris, animations réduites
 │
 ├── lib/                           # logique pure & utilitaires
 │   ├── cartLine.ts                # clé de fusion, prix, payload (partagé)

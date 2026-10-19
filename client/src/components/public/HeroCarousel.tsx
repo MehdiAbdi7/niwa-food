@@ -287,7 +287,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
       onBlur={() => {
         isPaused.current = false;
       }}
-      className="mx-auto flex w-full max-w-88 flex-col items-center sm:max-w-md lg:max-w-124"
+      className="relative mx-auto flex w-full max-w-88 flex-col items-center sm:max-w-md lg:max-w-136"
     >
       <div
         ref={stageRef}
@@ -363,14 +363,18 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
         <FloatingChips front />
       </div>
 
-      {/* Commandes sous le cercle : sur un écran de 360 px, posées sur la
-          scène, elles masquaient le bord des plats. */}
-      <div className="mt-2 flex w-full items-center justify-between gap-3">
+      {/* Commandes sous le cercle sur mobile : sur un écran de 360 px,
+          posées sur la scène, elles masquaient le bord des plats.
+          Dès md, les flèches passent de chaque côté du cercle, à mi-hauteur
+          de la scène (hauteur totale moins la rangée de légende, 2,75rem) :
+          sous le cercle, elles tombaient sous la ligne de flottaison d'un
+          écran 1080p. La légende, elle, reste dessous. */}
+      <div className="flex w-full items-center justify-between gap-3">
         <button
           type="button"
           onClick={goToPrev}
           aria-label="Plat précédent"
-          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground"
+          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:left-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
         >
           <span
             aria-hidden="true"
@@ -399,7 +403,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
           type="button"
           onClick={goToNext}
           aria-label="Plat suivant"
-          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground"
+          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:right-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
         >
           <span
             aria-hidden="true"

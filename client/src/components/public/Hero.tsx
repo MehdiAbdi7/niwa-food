@@ -61,7 +61,7 @@ export function Hero() {
 
       {/* Padding bas plus grand que le haut : les bandeaux de StreetBands
           viennent chevaucher le bas du hero. */}
-      <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-8 pb-20 md:grid-cols-[1.1fr_1fr] md:gap-4 lg:pb-28">
+      <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-8 pb-20 md:grid-cols-[1.1fr_1fr] md:gap-4 lg:pb-38">
         <div className="flex flex-col items-start gap-6">
           <h1 className="font-heading text-[clamp(2.5rem,11.5vw,3.9rem)] font-bold leading-[0.9] tracking-[-0.02em] md:text-[clamp(3.1rem,5.6vw,4.75rem)]">
             {/* L'espace après chaque ligne ne se voit pas (les lignes sont
@@ -80,8 +80,8 @@ export function Hero() {
           </h1>
 
           <p className="max-w-md text-base font-semibold leading-relaxed sm:text-lg">
-            Préparés à la commande dans nos cuisines de Kouba et Chéraga.
-            Sur place, à emporter ou livrés chez vous.
+            Préparés à la commande dans nos cuisines de Kouba et Chéraga. Sur
+            place, à emporter ou livrés chez vous.
           </p>
 
           {/* En colonne sur mobile, toujours, et pas de flex-wrap : la

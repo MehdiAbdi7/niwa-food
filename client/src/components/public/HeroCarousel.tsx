@@ -65,8 +65,8 @@ const FLOATING_CHIPS: FloatingChip[] = [
   {
     shape: 1,
     color: "var(--chip-mustard)",
-    top: 46,
-    left: 89,
+    top: 35,
+    left: 92,
     size: 11,
     depth: 18,
   },
@@ -374,23 +374,20 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
           type="button"
           onClick={goToPrev}
           aria-label="Plat précédent"
-          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:left-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
+          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-primary bg-linear-to-t from-primary/50 via-transparent to-transparent text-foreground transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:left-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
         >
           <span
             aria-hidden="true"
             className="icon-[mdi--chevron-left] text-2xl"
           />
         </button>
-
-        <div className="relative h-11 min-w-0 flex-1">
-          {/* L'ancienne légende s'efface d'abord, la nouvelle n'apparaît
-              qu'ensuite (delay-200) : en fondu croisé, les deux textes se
-              superposaient à mi-chemin. */}
+        {/* Légende posée dans le bas du cercle. */}
+        <div className="pointer-events-none absolute inset-x-[15%] bottom-[14%] z-30 h-10">
           {slides.map((slide, index) => (
             <p
               key={slide.src}
               aria-hidden={index !== currentIndex}
-              className={`absolute inset-0 flex items-center justify-center text-center font-heading text-base font-bold leading-tight transition-opacity duration-300 sm:text-lg ${
+              className={`absolute inset-0 m-auto flex h-fit w-fit max-w-full items-center justify-center rounded-full border border-primary bg-background/80 px-4 py-1.5 text-center font-heading text-sm font-bold leading-tight text-foreground backdrop-blur-sm transition-opacity duration-300 sm:text-base ${
                 index === currentIndex ? "opacity-100 delay-200" : "opacity-0"
               }`}
             >
@@ -398,12 +395,11 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
             </p>
           ))}
         </div>
-
         <button
           type="button"
           onClick={goToNext}
           aria-label="Plat suivant"
-          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:right-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
+          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-primary bg-linear-to-t from-primary/50 via-transparent to-transparent text-foreground transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:right-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
         >
           <span
             aria-hidden="true"

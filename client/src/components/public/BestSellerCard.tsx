@@ -60,15 +60,13 @@ export function BestSellerCard({
       // h-full : le wrapper est étiré à la hauteur de la rangée par le flex
       // parent, mais la carte garderait sa hauteur de contenu. C'est ce h-full
       // qui aligne les cartes entre elles.
-      className="tilt-card group relative flex h-full flex-col rounded-[1.75rem] bg-surface p-2.5 shadow-[0_18px_30px_-22px_rgb(61_39_22/0.55)] ring-1 ring-border-subtle focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-accent-green"
+      className="tilt-card group relative flex h-full flex-col rounded-[1.75rem] border border-primary bg-surface p-2.5 shadow-[0_18px_30px_-22px_rgb(61_39_22/0.55)] ring-1 ring-border-subtle focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-accent-green"
     >
       {/* Vignette. shrink-0 indispensable : un enfant de flex en
           aspect-ratio se laisse comprimer quand une voisine plus haute étire
           la carte, et les photos perdent leur alignement. Pas d'overflow
           hidden : au survol, le plat sort du cadre. */}
-      <div
-        className="relative aspect-square w-full shrink-0 rounded-[1.35rem] bg-primary/20"
-      >
+      <div className="relative aspect-square w-full shrink-0 rounded-[1.35rem] bg-primary/10">
         {/* Ombre posée sous le plat : un dégradé, bien moins coûteux qu'un
             filtre drop-shadow sur vingt-sept images détourées. Elle se
             resserre quand le plat s'élève. */}
@@ -93,7 +91,6 @@ export function BestSellerCard({
             />
           </div>
         )}
-
       </div>
 
       <div className="relative flex flex-1 flex-col gap-1 px-2 pb-2 pt-5">

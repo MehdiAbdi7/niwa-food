@@ -74,7 +74,10 @@ export function Contact() {
                   href={location.phoneHref}
                   className="btn-press flex h-12 items-center justify-center gap-2 rounded-full bg-primary font-heading text-lg font-bold text-on-primary [--edge:#5e3a2e] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-accent-green dark:[--edge:#6b4b05]"
                 >
-                  <span aria-hidden="true" className="icon-[mdi--phone] text-xl" />
+                  <span
+                    aria-hidden="true"
+                    className="icon-[mdi--phone] text-xl"
+                  />
                   {location.phone}
                 </a>
 
@@ -102,35 +105,15 @@ export function Contact() {
                   aria-label={`Itinéraire vers Niwa Food ${location.name} sur Google Maps`}
                   className="mt-auto flex h-12 items-center justify-center gap-2 rounded-full border-2 border-foreground font-heading text-base font-bold text-foreground transition-colors duration-300 hover:bg-foreground hover:text-background focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-accent-green"
                 >
-                  <span aria-hidden="true" className="icon-[mdi--directions] text-lg" />
+                  <span
+                    aria-hidden="true"
+                    className="icon-[mdi--directions] text-lg"
+                  />
                   Itinéraire
                 </Link>
               </div>
             </article>
           ))}
-        </div>
-
-        <div className="mt-10 flex flex-wrap items-center gap-4">
-          <p className="font-heading text-lg font-bold text-foreground">
-            Suivez-nous
-          </p>
-          <div className="flex items-center gap-2">
-            {SOCIALS.map((social) => (
-              <Link
-                key={social.label}
-                href={social.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={social.label}
-                className={`flex h-11 w-11 items-center justify-center rounded-full transition-transform duration-300 hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-accent-green ${social.bg}`}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`${social.icon} ${social.fg} text-2xl`}
-                />
-              </Link>
-            ))}
-          </div>
         </div>
       </div>
     </section>

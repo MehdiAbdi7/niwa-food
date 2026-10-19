@@ -98,11 +98,6 @@ function ReviewCard({
         <StarRating rating={testimonial.rating} />
         {/* Ces avis sont des exemples rédigés pour la démo : chaque carte le
             dit, car une carte isolée défile sans le titre de la section. */}
-        {DEMO_MODE && (
-          <span className="rounded-full bg-sticker px-2.5 py-1 text-xs font-bold text-sticker-ink">
-            Exemple
-          </span>
-        )}
       </div>
 
       <blockquote className="text-base leading-relaxed text-foreground">
@@ -114,7 +109,10 @@ function ReviewCard({
           {testimonial.name}
         </span>
         <span className="flex items-center gap-0.5 text-foreground/75">
-          <span aria-hidden="true" className="icon-[mdi--map-marker] text-base" />
+          <span
+            aria-hidden="true"
+            className="icon-[mdi--map-marker] text-base"
+          />
           {testimonial.location}
         </span>
       </figcaption>
@@ -158,13 +156,24 @@ function ReviewRow({
             les animations sont réduites (globals.css). */}
         <div className="marquee-half flex shrink-0 gap-5 pr-5">
           {items.map((testimonial, index) => (
-            <ReviewCard key={testimonial.name} testimonial={testimonial} index={index} />
+            <ReviewCard
+              key={testimonial.name}
+              testimonial={testimonial}
+              index={index}
+            />
           ))}
         </div>
         {withCopy && (
-          <div aria-hidden="true" className="marquee-copy marquee-half flex shrink-0 gap-5 pr-5">
+          <div
+            aria-hidden="true"
+            className="marquee-copy marquee-half flex shrink-0 gap-5 pr-5"
+          >
             {items.map((testimonial, index) => (
-              <ReviewCard key={testimonial.name} testimonial={testimonial} index={index} />
+              <ReviewCard
+                key={testimonial.name}
+                testimonial={testimonial}
+                index={index}
+              />
             ))}
           </div>
         )}

@@ -92,6 +92,12 @@ export default function Home() {
             className="top-[58%] h-112 -translate-y-1/2"
             imageClassName="rounded-2xl object-cover object-center"
           />
+          <SideDeco
+            src="/sauces2.png"
+            side="right"
+            className="top-[58%] h-112 -translate-y-1/2 -scale-x-100"
+            imageClassName="rounded-2xl object-cover object-center"
+          />
           <BestSellers />
         </div>
 
@@ -119,9 +125,15 @@ export default function Home() {
 
         <div className="relative">
           <SideDeco
+            src="/sauces.png"
+            side="left"
+            className="top-[58%] h-112 -translate-y-1/2"
+            imageClassName="rounded-2xl object-cover object-center"
+          />
+          <SideDeco
             src="/sauces2.png"
             side="right"
-            className="top-1/2 h-112 -translate-y-1/2 -scale-x-100"
+            className="top-[58%] h-112 -translate-y-1/2 -scale-x-100"
             imageClassName="rounded-2xl object-cover object-center"
           />
           <Contact />

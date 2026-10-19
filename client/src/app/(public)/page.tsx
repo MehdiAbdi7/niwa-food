@@ -1,121 +1,143 @@
 // page.tsx
 
+import Image from "next/image";
 import { About } from "@/components/public/About";
 import { BestSellers } from "@/components/public/BestSellers";
 import { Contact } from "@/components/public/Contact";
 import { Hero } from "@/components/public/Hero";
 import { HowItWorks } from "@/components/public/HowItWorks";
-import { Reveal } from "@/components/public/Reveal";
 import { RestaurantJsonLd } from "@/components/public/RestaurantJsonLd";
+import { StreetBands } from "@/components/public/StreetBands";
 import { Testimonials } from "@/components/public/Testimonials";
-import Image from "next/image";
 
-// Toutes les décorations ci-dessous vivent dans un conteneur `w-56` visible à
+// Toutes les décorations ci-dessous vivent dans un cadre `w-56` visible à
 // partir de xl uniquement : leur largeur d'affichage est donc constante, d'où
 // un `sizes` fixe. Sans lui, Next suppose 100vw et sert la variante la plus
 // large du srcset pour un rendu de 224 px.
 const DECO_SIZES = "224px";
 
-// Retard commun à toutes les sections : laisse le temps d'arriver sur la
-// section avant qu'elle ne se révèle, plutôt que de la voir apparaître au
-// moment précis où elle entre dans le champ.
-const REVEAL_DELAY_MS = 450;
+interface SideDecoProps {
+  src: string;
+  /** Marge de gauche ou de droite. */
+  side: "left" | "right";
+  /** Position verticale, hauteur et éventuel retournement du cadre. */
+  className: string;
+  imageClassName: string;
+}
 
+/**
+ * Décoration des marges (sauces, ingrédients), accrochée à une section.
+ *
+ * Collée au bord EXTÉRIEUR de la colonne de contenu (max-w-6xl), jamais
+ * dedans : les titres et les textes de l'accueil commencent au ras de cette
+ * colonne, une décoration posée par-dessus les masquait. Sur un écran de
+ * 1366 px elle dépasse à moitié de la marge, sur un écran large elle s'y
+ * voit en entier ; ce qui sort de l'écran est coupé par l'overflow-x-clip
+ * de la page.
+ *
+ * Pas de `priority` : ces images sont purement ornementales et masquées sous
+ * xl. Les précharger volait la priorité de la photo du hero, qui est le vrai
+ * contenu de la page. Masquées (display: none) sous xl, elles ne sont même
+ * pas téléchargées sur téléphone : next/image les charge en lazy.
+ */
+function SideDeco({ src, side, className, imageClassName }: SideDecoProps) {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 z-20 hidden xl:block"
+    >
+      <div className="relative mx-auto h-full max-w-6xl">
+        <div
+          className={`absolute w-56 ${side === "left" ? "right-full" : "left-full"} ${className}`}
+        >
+          <Image
+            src={src}
+            alt=""
+            fill
+            sizes={DECO_SIZES}
+            className={imageClassName}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Accueil « street-food pop ».
+ *
+ * Un seul moment orchestré, au chargement : le titre s'empile, le burger
+ * tombe dans le cercle, les éclats de terrazzo jaillissent (Hero). Plus bas,
+ * rien ne s'anime tout seul en entrant dans l'écran : chaque effet répond à
+ * un geste du visiteur, le défilement (bandeaux, route, vidéo) ou la souris
+ * (cartes, reflets).
+ *
+ * Chaque décoration est accrochée à la section qu'elle borde (un parent
+ * `relative`), et non posée entre deux sections : un élément de plus dans
+ * la colonne flex ajouterait un espace (gap) de plus.
+ */
 export default function Home() {
   return (
     <>
       <RestaurantJsonLd />
 
-      {/* Le Hero garde ses propres animations au chargement (slideInLeft en
-          cascade) : il est visible d'emblée, il n'a rien à révéler au scroll. */}
       <Hero />
+      <StreetBands />
 
-      <div className="flex flex-col gap-20 py-20">
+      <div className="flex flex-col gap-24 pb-24 pt-10 sm:gap-32 sm:pb-32">
         <div className="relative">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -left-7 top-50 z-20 hidden h-96 w-48 -translate-y-1/2 sm:h-112 sm:w-56 xl:block"
-          >
-            <Image
-              src="/sauces.png"
-              alt=""
-              fill
-              sizes={DECO_SIZES}
-              className="rounded-2xl object-cover object-center"
-            />
-          </div>
-        </div>
-
-        <Reveal delay={REVEAL_DELAY_MS}>
+          <SideDeco
+            src="/sauces.png"
+            side="left"
+            className="top-[58%] h-112 -translate-y-1/2"
+            imageClassName="rounded-2xl object-cover object-center"
+          />
+          <SideDeco
+            src="/sauces2.png"
+            side="right"
+            className="top-[58%] h-112 -translate-y-1/2 -scale-x-100"
+            imageClassName="rounded-2xl object-cover object-center"
+          />
           <BestSellers />
-        </Reveal>
-
-        <div className="relative">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-4 top-70 z-20 hidden -translate-y-1/2 sm:h-240 sm:w-56 xl:block"
-          >
-            {/* Pas de `priority` : ces images sont purement ornementales et
-              masquées sous xl. Les précharger volait la priorité de la photo
-              du hero, qui est le vrai contenu de la page. */}
-            <Image
-              src="/deco.png"
-              alt=""
-              fill
-              sizes={DECO_SIZES}
-              className="object-contain object-center"
-            />
-          </div>
         </div>
 
-        <Reveal delay={REVEAL_DELAY_MS}>
+        <div className="relative">
+          <SideDeco
+            src="/deco.png"
+            side="right"
+            className="top-1/2 h-240 -translate-y-1/2"
+            imageClassName="object-contain object-center"
+          />
           <HowItWorks />
-        </Reveal>
-
-        {/* About suit HowItWorks sans décoration entre les deux : sur grand
-          écran les deux entrent quasi ensemble dans le champ. Le retard
-          supplémentaire les fait lire comme une séquence, pas un sursaut. */}
-        <Reveal delay={REVEAL_DELAY_MS + 150}>
-          <About />
-        </Reveal>
-
-        <div className="relative">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -left-7 top-0 z-20 hidden -translate-y-1/2 sm:h-240 sm:w-56 xl:block"
-          >
-            <Image
-              src="/deco.png"
-              alt=""
-              fill
-              sizes={DECO_SIZES}
-              className="object-contain object-center"
-            />
-          </div>
         </div>
 
-        <Reveal delay={REVEAL_DELAY_MS}>
+        <About />
+
+        <div className="relative">
+          <SideDeco
+            src="/deco.png"
+            side="left"
+            className="top-0 h-240 -translate-y-1/2"
+            imageClassName="object-contain object-center"
+          />
           <Testimonials />
-        </Reveal>
-
-        <div className="relative">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-7 top-125 z-20 hidden -translate-y-1/2 -scale-x-100 sm:h-112 sm:w-56 xl:block"
-          >
-            <Image
-              src="/sauces2.png"
-              alt=""
-              fill
-              sizes={DECO_SIZES}
-              className="rounded-2xl object-cover object-center"
-            />
-          </div>
         </div>
 
-        <Reveal delay={REVEAL_DELAY_MS}>
+        <div className="relative">
+          <SideDeco
+            src="/sauces.png"
+            side="left"
+            className="top-[58%] h-112 -translate-y-1/2"
+            imageClassName="rounded-2xl object-cover object-center"
+          />
+          <SideDeco
+            src="/sauces2.png"
+            side="right"
+            className="top-[58%] h-112 -translate-y-1/2 -scale-x-100"
+            imageClassName="rounded-2xl object-cover object-center"
+          />
           <Contact />
-        </Reveal>
+        </div>
       </div>
     </>
   );

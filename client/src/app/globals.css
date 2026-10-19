@@ -60,6 +60,35 @@
   --color-status-out_for_delivery: var(--color-primary);
   --color-status-completed: #6b7280;
   --color-status-cancelled: var(--color-accent-bordeaux);
+
+  /* --- Accueil « street-food pop » ---
+     Le hero et « Comment ça marche » gardent les fonds et le cercle doré
+     d'origine : ils n'ont pas de jetons à eux.
+
+     Bandeau du dessous du hero (StreetBands) : brun sous texte crème en
+     clair (12,9:1), moutarde sous texte brun en sombre (9,9:1). */
+  --band: #3d2716;
+  --band-ink: #fbf5ef;
+
+  /* Éclats du terrazzo du logo. Pure décoration : jamais sous du texte, donc
+     hors des règles de contraste. */
+  --chip-terracotta: #965e4c;
+  --chip-bordeaux: #8b2e3a;
+  --chip-blue: #5b7a96;
+  --chip-olive: #7a7a68;
+  --chip-sand: #f3e3cc;
+  --chip-mustard: #e8a020;
+
+  /* Fonds des vignettes best-sellers, appliqués dans l'ordre et en boucle.
+     Les plats sont détourés : ils flottent sur l'aplat. */
+  --tile-1: #f4c55c;
+  --tile-2: #ebbfa9;
+  --tile-3: #cfdcc4;
+  --tile-4: #f3e3cc;
+
+  /* Pastille de prix : 7,6:1 en clair, 9,9:1 en sombre. */
+  --sticker: #8b2e3a;
+  --sticker-ink: #fbf5ef;
 }
 
 .dark {
@@ -93,6 +122,24 @@
   --color-status-out_for_delivery: #c99a4a;
   --color-status-completed: #8a8580;
   --color-status-cancelled: var(--color-accent-bordeaux);
+
+  --band: #e6b856;
+  --band-ink: #1a1310;
+
+  --chip-terracotta: #b5765f;
+  --chip-bordeaux: #c2485a;
+  --chip-blue: #7b9bb8;
+  --chip-olive: #9a9a86;
+  --chip-sand: #f3e3cc;
+  --chip-mustard: #e6b856;
+
+  --tile-1: #3f2e12;
+  --tile-2: #43271f;
+  --tile-3: #24342a;
+  --tile-4: #352a20;
+
+  --sticker: #e6b856;
+  --sticker-ink: #1a1310;
 }
 
 @theme inline {
@@ -121,6 +168,11 @@
   --color-status-out_for_delivery: var(--color-status-out_for_delivery);
   --color-status-completed: var(--color-status-completed);
   --color-status-cancelled: var(--color-status-cancelled);
+
+  --color-band: var(--band);
+  --color-band-ink: var(--band-ink);
+  --color-sticker: var(--sticker);
+  --color-sticker-ink: var(--sticker-ink);
 }
 
 body {
@@ -284,4 +336,334 @@ button,
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.35),
     0 10px 24px -14px rgba(0, 0, 0, 0.55);
+}
+
+/* =====================================================================
+   Accueil « street-food pop »
+   =====================================================================
+   Deux règles valent pour tout ce bloc :
+   - on n'anime que transform, translate et opacity, les seules propriétés
+     que le GPU compose sans repeindre la page ;
+   - les animations vivent dans @media (prefers-reduced-motion:
+     no-preference). Un visiteur qui a demandé moins de mouvement reçoit
+     directement l'état final, sans rien à désactiver après coup. */
+
+:root {
+  /* Ressorts amortis. CSS n'a pas de fonction « spring », mais linear()
+     relie autant de points qu'on veut : ces courbes sont échantillonnées sur
+     l'équation d'un ressort (amortissement 0,5 pour pop, 0,7 pour settle).
+     pop dépasse sa cible de 16 % avant de revenir, settle de 4 %. */
+  --ease-pop: linear(0, 0.012 1.3%, 0.047 2.5%, 0.1 3.8%, 0.243 6.3%, 0.675 12.5%, 0.828 15%, 0.954 17.5%, 1.049 20%, 1.114 22.5%, 1.15 25%, 1.163 27.5%, 1.15 31.3%, 1.01 45%, 0.974 53.8%, 1);
+  --ease-settle: linear(0, 0.013 1.7%, 0.047 3.3%, 0.098 5%, 0.161 6.7%, 0.531 15%, 0.666 18.3%, 0.828 23.3%, 0.939 28.3%, 1.005 33.3%, 1.042 40%, 1);
+
+  /* Reflet des cartes adresses : moutarde en clair (un reflet blanc ne se
+     verrait pas sur la carte blanche), blanc en sombre. */
+  --spotlight: rgb(232 160 32 / 0.22);
+}
+
+.dark {
+  --spotlight: rgb(255 255 255 / 0.1);
+}
+
+/* --- Hero : le titre s'empile comme un burger --------------------------
+   Chaque ligne tombe, s'écrase en touchant la précédente puis se redresse.
+   Le texte reste visible dès la première image : il part d'une position
+   légèrement décalée, jamais d'une opacité nulle ni d'une zone rognée. Le
+   titre peut être l'élément LCP sur mobile, et un texte invisible au
+   départ retarderait la mesure de toute la durée de l'animation. */
+@keyframes hero-line-land {
+  0% {
+    transform: translateY(-0.3em) rotate(var(--tilt, -4deg));
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  45% {
+    transform: translateY(0.04em) scale(1.05, 0.88);
+    animation-timing-function: cubic-bezier(0, 0.55, 0.45, 1);
+  }
+  72% {
+    transform: translateY(-0.03em) scale(0.98, 1.04);
+    animation-timing-function: ease-in-out;
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* Le plat tombe sur l'assiette avec le même écrasement que le titre. Même
+   règle : visible dès le départ, c'est l'autre candidat LCP. */
+@keyframes hero-dish-drop {
+  0% {
+    transform: translateY(-20%) rotate(-9deg);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  48% {
+    transform: translateY(0) scale(1.08, 0.88);
+    animation-timing-function: cubic-bezier(0, 0.55, 0.45, 1);
+  }
+  68% {
+    transform: translateY(-4%) scale(0.97, 1.04) rotate(1deg);
+    animation-timing-function: ease-in-out;
+  }
+  85% {
+    transform: translateY(0) scale(1.015, 0.985);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* L'ombre posée sous le plat grandit à mesure qu'il approche du sol. */
+@keyframes hero-shadow-land {
+  0% {
+    transform: scale(0.45);
+    opacity: 0.4;
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  48% {
+    transform: scale(1.12, 1);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Les éclats de terrazzo jaillissent de derrière le plat à l'impact... */
+@keyframes hero-chip-burst {
+  from {
+    transform: translate(var(--bx, 0), var(--by, 0)) scale(0.2) rotate(-120deg);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* ...puis flottent doucement, chacun à son rythme. */
+@keyframes hero-chip-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(var(--float, -10px)) rotate(var(--spin, 12deg));
+  }
+}
+
+@keyframes marquee-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Une ligne par mot, mais à la largeur du mot : un block occuperait toute
+   la colonne et pivoterait autour de son centre, loin du texte.
+   nowrap : une ligne ne se coupe jamais en deux, même avec la police de
+   secours, plus large. Le titre garde ainsi quatre lignes du premier
+   affichage à l'arrivée de Baloo 2, et rien ne bouge en dessous. */
+.hero-line {
+  display: block;
+  width: fit-content;
+  white-space: nowrap;
+  transform-origin: 20% 100%;
+}
+
+/* Les plats tournent autour d'un même axe, placé loin sous le cercle : un
+   plat qui s'en va décrit un grand arc, comme sur un présentoir tournant. */
+.hero-dish {
+  transform-origin: 50% 165%;
+  transition:
+    transform 0.95s var(--ease-settle),
+    opacity 0.45s ease;
+}
+
+/* Parallaxe à la souris : --mx et --my (entre -1 et 1) sont posées par
+   HeroCarousel sur la scène, --depth règle l'amplitude de chaque éclat.
+   La propriété `translate` et non `transform` : les enfants de l'éclat
+   animent déjà transform (jaillissement, flottement), les deux se
+   cumulent au lieu de s'écraser. */
+.hero-chip {
+  translate: calc(var(--mx, 0) * var(--depth, 12) * 1px)
+    calc(var(--my, 0) * var(--depth, 12) * 1px);
+  transition: translate 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Bouton qu'on enfonce : un rebord plein sous le bouton, qui s'écrase au
+   clic. --edge est fourni par le bouton. */
+.btn-press {
+  box-shadow: 0 5px 0 var(--edge, #000);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.2s ease;
+}
+
+.btn-press:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 var(--edge, #000);
+}
+
+.btn-press:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--edge, #000);
+}
+
+/* --- Comment ça marche : la route ---------------------------------------
+   is-active est posée par HowItWorks quand le scooter atteint l'étape. */
+.road-dot {
+  transition:
+    transform 0.6s var(--ease-pop),
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
+}
+
+.road-step.is-active .road-dot {
+  transform: scale(1.12) rotate(-6deg);
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* --- À propos : la vidéo se pose ----------------------------------------
+   --p (0 à 1) est posée par About au défilement : la vidéo arrive un peu
+   plus petite et de travers, puis se redresse à sa place. Valeur par défaut
+   1 : sans JavaScript, ou avec les animations réduites, elle est
+   directement dans son état final. */
+.scene-video {
+  transform: scale(calc(0.8 + 0.2 * var(--p, 1)))
+    rotate(calc((1 - var(--p, 1)) * -6deg));
+}
+
+.scene-sticker {
+  transform: rotate(var(--r, 0deg));
+  transition:
+    transform 0.7s var(--ease-pop),
+    opacity 0.2s ease;
+}
+
+.scene[data-stickers="hidden"] .scene-sticker {
+  transform: scale(0.3) rotate(calc(var(--r, 0deg) - 25deg));
+  opacity: 0;
+}
+
+/* --- Best-sellers : cartes inclinables ----------------------------------
+   --tilt-x / --tilt-y sont posées au survol de la souris (pointerEffects).
+   Au survol, la carte suit vite ; en sortie, elle revient sur un ressort. */
+.tilt-card {
+  transition: transform 0.7s var(--ease-settle);
+}
+
+.tilt-card:hover {
+  transition: transform 0.15s ease-out;
+}
+
+/* --- Contact : reflet qui suit la souris -------------------------------- */
+.spotlight::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    22rem circle at var(--px, 50%) var(--py, 0%),
+    var(--spotlight),
+    transparent 65%
+  );
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.spotlight:hover::after {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-line {
+    animation: hero-line-land 0.75s both;
+    animation-delay: calc(0.08s + var(--i, 0) * 0.11s);
+  }
+
+  .hero-dish-drop {
+    transform-origin: 50% 90%;
+    animation: hero-dish-drop 0.9s 0.5s both;
+  }
+
+  .hero-shadow-land {
+    animation: hero-shadow-land 0.9s 0.5s both;
+  }
+
+  .hero-chip-burst {
+    animation: hero-chip-burst 0.9s var(--ease-pop) both;
+    animation-delay: calc(0.95s + var(--d, 0s));
+  }
+
+  .hero-chip-float {
+    animation: hero-chip-float var(--t, 7s) ease-in-out var(--fd, 0s) infinite;
+  }
+
+  .marquee-track {
+    animation: marquee-scroll var(--marquee-duration, 40s) linear infinite;
+  }
+
+  .marquee-track[data-direction="reverse"] {
+    animation-direction: reverse;
+  }
+
+  /* Avis : immobiles tant que la copie qui fait boucler n'est pas rendue
+     (Testimonials la rend une fois la page au repos). */
+  .marquee:not([data-ready="true"]) .marquee-track {
+    animation: none;
+  }
+
+  /* Survol, focus à l'intérieur ou bouton pause : l'avis qu'on lit cesse de
+     filer. */
+  .marquee:hover .marquee-track,
+  .marquee:focus-within .marquee-track,
+  .marquee[data-paused="true"] .marquee-track {
+    animation-play-state: paused;
+  }
+}
+
+/* (hover: hover) : sur écran tactile, l'inclinaison resterait figée là où
+   le doigt s'est posé. */
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  .tilt-card {
+    transform: perspective(900px) rotateX(var(--tilt-x, 0deg))
+      rotateY(var(--tilt-y, 0deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-dish,
+  .hero-chip,
+  .scene-sticker {
+    transition: none;
+  }
+
+  /* Sans défilement, les avis se rangent en grille : la copie qui servait à
+     boucler n'a plus de raison d'être, la seconde rangée non plus, ni le
+     fondu des bords. Limité à .marquee (les avis) : les bandeaux de
+     l'accueil, eux, restent sur une ligne, simplement immobiles. */
+  .marquee .marquee-track,
+  .marquee .marquee-half {
+    flex-wrap: wrap;
+    justify-content: center;
+    width: auto;
+    flex-shrink: 1;
+  }
+
+  /* Le pr-5 qui séparait les deux moitiés décentrerait la grille. */
+  .marquee .marquee-half {
+    padding-inline: 1rem;
+  }
+
+  .marquee .marquee-row {
+    mask-image: none;
+  }
+
+  .marquee .marquee-copy,
+  .marquee .marquee-row-extra {
+    display: none;
+  }
 }

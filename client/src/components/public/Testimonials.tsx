@@ -1,17 +1,9 @@
-// src/components/public/Testimonials.tsx
-
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useAppDispatch, useAppSelector } from "@/lib/hooks";
-import {
-  nextTestimonial,
-  prevTestimonial,
-} from "@/features/testimonials/testimonialsSlice";
+import { useState, type CSSProperties } from "react";
 import { DEMO_MODE } from "@/config/site";
-
-const AUTOPLAY_INTERVAL_MS = 5000;
-const SWIPE_THRESHOLD_PX = 40;
+import { useIsPageIdle } from "@/features/motion/useIsPageIdle";
+import { useReducedMotion } from "@/features/motion/useReducedMotion";
 
 interface Testimonial {
   name: string;
@@ -59,13 +51,17 @@ const TESTIMONIALS: Testimonial[] = [
   },
 ];
 
+// Seconde rangée : mêmes avis dans un autre ordre, pour que deux avis
+// identiques ne passent jamais l'un au-dessus de l'autre.
+const SECOND_ROW = [...TESTIMONIALS.slice(3), ...TESTIMONIALS.slice(0, 3)];
+
 function StarRating({ rating }: { rating: number }) {
   return (
     // role="img" indispensable : aria-label n'est autorisé que sur un élément
     // dont le rôle accepte un nom accessible. Un <div> nu a le rôle implicite
-    // "generic", qui ne le permet pas — le label était donc purement ignoré,
-    // et la note jamais annoncée. Le rôle "img" traite les cinq étoiles comme
-    // une image unique, décrite par son label.
+    // "generic", qui ne le permet pas : le label serait ignoré, et la note
+    // jamais annoncée. Le rôle "img" traite les cinq étoiles comme une image
+    // unique, décrite par son label.
     <div
       role="img"
       aria-label={`${rating} sur 5 étoiles`}
@@ -84,175 +80,185 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-export function Testimonials() {
-  const currentIndex = useAppSelector(
-    (state) => state.testimonials.currentIndex,
-  );
-  const dispatch = useAppDispatch();
-  const touchStartX = useRef<number | null>(null);
-
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    if (prefersReducedMotion) return;
-
-    const interval = setInterval(() => {
-      dispatch(nextTestimonial(TESTIMONIALS.length));
-    }, AUTOPLAY_INTERVAL_MS);
-
-    return () => clearInterval(interval);
-  }, [dispatch]);
-
-  const goToNext = () => dispatch(nextTestimonial(TESTIMONIALS.length));
-  const goToPrev = () => dispatch(prevTestimonial(TESTIMONIALS.length));
-
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (touchStartX.current === null) return;
-    const deltaX = touchStartX.current - e.changedTouches[0].clientX;
-
-    if (deltaX > SWIPE_THRESHOLD_PX) goToNext();
-    else if (deltaX < -SWIPE_THRESHOLD_PX) goToPrev();
-
-    touchStartX.current = null;
-  };
-
+function ReviewCard({
+  testimonial,
+  index,
+}: {
+  testimonial: Testimonial;
+  index: number;
+}) {
   return (
-    <section
-      id="avis"
-      className="relative isolate overflow-hidden px-2 py-6 sm:px-8 "
+    // Légèrement de travers, un coup à gauche, un coup à droite : des avis
+    // épinglés au mur, pas une grille de tableau de bord.
+    <figure
+      className="flex w-[18.5rem] shrink-0 flex-col gap-3 rounded-[1.75rem] bg-surface p-6 shadow-[0_18px_30px_-24px_rgb(61_39_22/0.6)] ring-1 ring-border-subtle sm:w-[23rem]"
+      style={{ rotate: index % 2 ? "1deg" : "-1.2deg" }}
     >
-      <div className="mx-auto max-w-4xl rounded-4xl background dark:bg-primary/30 px-4 py-8 shadow-[0_0_25px_5px_rgba(217,169,77,0.45)] shadow-primary/30 backdrop-blur-md sm:px-8 sm:py-12 border border-primary">
-        <div className="mb-8 flex flex-col items-center gap-2 text-center sm:mb-10">
-          <span className="font-heading text-sm font-bold uppercase tracking-[0.18em] text-foreground/70">
-            La parole aux habitués
-          </span>
-          <h2 className="font-heading text-3xl font-bold text-accent-green sm:text-4xl">
-            Ce que disent nos clients
-          </h2>
-          {/* Ces avis sont des exemples rédigés pour la démo : les présenter
-              comme de vrais clients serait trompeur. Le jour où le restaurant
-              valide le site, ils sont remplacés par de vrais avis (Google, par
-              exemple) et la mention disparaît avec le mode démo. */}
-          {DEMO_MODE ? (
-            <p className="max-w-md rounded-full border border-primary/40 px-3 py-1 text-xs font-semibold text-foreground/80">
-              Avis d&apos;exemple pour la démonstration, pas de vrais clients
-            </p>
-          ) : (
-            <p className="max-w-md text-sm text-foreground/80">
-              Des expériences partagées après un passage chez Niwa Food.
-            </p>
-          )}
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <StarRating rating={testimonial.rating} />
+        {/* Ces avis sont des exemples rédigés pour la démo : chaque carte le
+            dit, car une carte isolée défile sans le titre de la section. */}
+      </div>
 
-        {/* aria-live="polite" : le contenu change tout seul toutes les cinq
-            secondes. Sans ça, un lecteur d'écran annonce le premier avis puis
-            plus jamais rien, alors que le texte sous le curseur a changé. */}
-        <div
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          aria-live="polite"
-          aria-atomic="true"
-          className="relative mx-auto min-h-64 w-full max-w-2xl sm:min-h-56"
-        >
-          {TESTIMONIALS.map((testimonial, index) => {
-            const isCurrent = index === currentIndex;
+      <blockquote className="text-base leading-relaxed text-foreground">
+        {testimonial.text}
+      </blockquote>
 
-            return (
-              <div
-                key={testimonial.name}
-                className={`absolute inset-0 flex flex-col items-center gap-4 rounded-3xl border border-primary bg-background p-6 text-center shadow-food-sm transition-[transform,opacity] duration-700 ease-out sm:p-8 ${
-                  isCurrent ? "opacity-100" : "opacity-0"
-                }`}
-                style={{
-                  transform: isCurrent ? "translateY(0)" : "translateY(1.5rem)",
-                }}
-                aria-hidden={!isCurrent}
-                // Les avis masqués restent dans le DOM, superposés en absolu :
-                // sans inert, leur texte reste sélectionnable à la souris et
-                // interceptable au clavier alors qu'il est invisible.
-                inert={!isCurrent}
-              >
-                <span
-                  aria-hidden="true"
-                  className="icon-[mdi--format-quote-open] text-3xl text-accent-green/60"
-                />
+      <figcaption className="mt-auto flex items-center gap-2 pt-1 text-sm">
+        <span className="font-heading text-base font-bold text-foreground">
+          {testimonial.name}
+        </span>
+        <span className="flex items-center gap-0.5 text-foreground/75">
+          <span
+            aria-hidden="true"
+            className="icon-[mdi--map-marker] text-base"
+          />
+          {testimonial.location}
+        </span>
+      </figcaption>
+    </figure>
+  );
+}
 
-                <p className="text-sm font-medium leading-relaxed text-foreground sm:text-base">
-                  {testimonial.text}
-                </p>
+interface ReviewRowProps {
+  items: Testimonial[];
+  reverse?: boolean;
+  /** Rangée décorative : masquée aux lecteurs d'écran et sans animations. */
+  extra?: boolean;
+  /** Rend la seconde moitié de la piste, celle qui fait boucler. */
+  withCopy: boolean;
+  duration: string;
+}
 
-                <StarRating rating={testimonial.rating} />
-
-                <div className="flex flex-col items-center gap-0.5">
-                  <span className="font-heading text-sm font-bold text-foreground">
-                    {testimonial.name}
-                  </span>
-                  <span className="flex items-center gap-1 text-xs text-accent-green">
-                    <span
-                      aria-hidden="true"
-                      className="icon-[mdi--map-marker] text-sm"
-                    />
-                    {testimonial.location}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Flèches */}
-        <div className="mt-6 flex items-center justify-center gap-4">
-          <button
-            type="button"
-            onClick={goToPrev}
-            aria-label="Avis précédent"
-            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-primary/10 text-primary shadow-food-sm transition-transform hover:scale-110"
-          >
-            <span
-              aria-hidden="true"
-              className="icon-[mdi--chevron-left] text-2xl"
+function ReviewRow({
+  items,
+  reverse = false,
+  extra = false,
+  withCopy,
+  duration,
+}: ReviewRowProps) {
+  // La piste contient la liste deux fois et glisse de -50 % en boucle. Le
+  // pr-5 de chaque moitié tient lieu d'espace entre elles : un gap sur la
+  // piste ajouterait un demi-espace au trajet, et la boucle sauterait.
+  return (
+    <div
+      aria-hidden={extra || undefined}
+      className={`marquee-row overflow-x-clip py-4 [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)] ${
+        extra ? "marquee-row-extra" : ""
+      }`}
+    >
+      <div
+        className="marquee-track flex w-max"
+        data-direction={reverse ? "reverse" : undefined}
+        style={{ "--marquee-duration": duration } as CSSProperties}
+      >
+        {/* marquee-half : ce sont ces moitiés qui passent en grille quand
+            les animations sont réduites (globals.css). */}
+        <div className="marquee-half flex shrink-0 gap-5 pr-5">
+          {items.map((testimonial, index) => (
+            <ReviewCard
+              key={testimonial.name}
+              testimonial={testimonial}
+              index={index}
             />
-          </button>
-
-          {/* Dots — purement indicatifs, non cliquables, donc masqués en bloc
-              plutôt que un par un. */}
+          ))}
+        </div>
+        {withCopy && (
           <div
             aria-hidden="true"
-            className="flex items-center gap-1.5 sm:gap-2"
+            className="marquee-copy marquee-half flex shrink-0 gap-5 pr-5"
           >
-            {TESTIMONIALS.map((testimonial, index) => (
-              <span
+            {items.map((testimonial, index) => (
+              <ReviewCard
                 key={testimonial.name}
-                className={`rounded-full transition-opacity duration-300 ${
-                  index === currentIndex
-                    ? "bg-accent-green opacity-100 h-2.5 w-2.5"
-                    : "bg-primary opacity-80 h-2 w-2"
-                }`}
+                testimonial={testimonial}
+                index={index}
               />
             ))}
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-          <span className="sr-only">
-            Avis {currentIndex + 1} sur {TESTIMONIALS.length}
-          </span>
+/**
+ * Les avis, en deux rangées qui défilent en sens opposé.
+ *
+ * Le défilement est une animation CSS (marquee-scroll, globals.css). Il
+ * s'arrête au survol, quand le focus entre dans la section, et sur le
+ * bouton pause : un contenu qui bouge tout seul plus de cinq secondes doit
+ * pouvoir être arrêté (WCAG 2.2.2). Avec les animations réduites, il n'y a
+ * plus de défilement du tout : les six avis se rangent en grille.
+ *
+ * Seule la première liste est rendue au chargement : copies et seconde
+ * rangée ajoutent dix-huit cartes, rendues une fois la page au repos, et
+ * jamais avec les animations réduites, où elles ne serviraient à rien.
+ */
+export function Testimonials() {
+  const [isPaused, setIsPaused] = useState(false);
+  const isPageIdle = useIsPageIdle();
+  const prefersReducedMotion = useReducedMotion();
+  const isLooping = isPageIdle && !prefersReducedMotion;
+
+  return (
+    <section id="avis">
+      {/* En-tête dans la colonne commune aux autres sections. */}
+      <div className="px-4 sm:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="font-heading text-[2.6rem] font-bold leading-[0.95] tracking-[-0.01em] text-foreground sm:text-6xl">
+              Ce qu&apos;en disent les habitués
+            </h2>
+            {/* Le jour où le restaurant valide le site, ces exemples sont
+                remplacés par de vrais avis (Google, par exemple) et la
+                mention disparaît avec le mode démo. */}
+            {DEMO_MODE ? (
+              <p className="mt-4 inline-flex rounded-full border-2 border-dashed border-foreground/40 px-4 py-1.5 text-sm font-semibold text-foreground/85">
+                Avis d&apos;exemple pour la démonstration, pas de vrais clients
+              </p>
+            ) : (
+              <p className="mt-3 max-w-md text-base text-foreground/75 sm:text-lg">
+                Des expériences partagées après un passage chez Niwa Food.
+              </p>
+            )}
+          </div>
 
           <button
             type="button"
-            onClick={goToNext}
-            aria-label="Avis suivant"
-            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-primary/10 text-primary shadow-food-sm transition-transform hover:scale-110"
+            onClick={() => setIsPaused((value) => !value)}
+            className="flex h-11 shrink-0 cursor-pointer items-center gap-2 rounded-full border-2 border-foreground px-4 font-heading text-sm font-bold text-foreground transition-colors hover:bg-foreground hover:text-background focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-accent-green motion-reduce:hidden"
           >
             <span
               aria-hidden="true"
-              className="icon-[mdi--chevron-right] text-2xl"
+              className={`text-lg ${isPaused ? "icon-[mdi--play]" : "icon-[mdi--pause]"}`}
             />
+            {isPaused ? "Relancer les avis" : "Mettre les avis en pause"}
           </button>
+        </div>
+      </div>
+
+      {/* data-ready : tant que la copie n'est pas rendue, la piste reste
+          immobile (globals.css). À -50 %, une piste d'une seule moitié
+          sauterait au bout de son trajet. */}
+      {/* Même largeur que les best-sellers (max-w-6xl) : d'un bord à
+          l'autre de l'écran, trop d'avis défilaient en même temps. */}
+      <div className="px-4 sm:px-8">
+        <div
+          className="marquee mx-auto mt-8 flex max-w-6xl flex-col sm:mt-10"
+          data-paused={isPaused}
+          data-ready={isLooping}
+        >
+          <ReviewRow items={TESTIMONIALS} withCopy={isLooping} duration="70s" />
+          {isLooping && (
+            <ReviewRow
+              items={SECOND_ROW}
+              reverse
+              extra
+              withCopy
+              duration="80s"
+            />
+          )}
         </div>
       </div>
     </section>

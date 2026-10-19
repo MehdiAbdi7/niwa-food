@@ -3,7 +3,6 @@
 import { configureStore } from "@reduxjs/toolkit";
 import themeReducer from "../features/theme/themeSlice";
 import navbarReducer from "../features/navbar/navbarSlice";
-import testimonialsReducer from "../features/testimonials/testimonialsSlice";
 import authReducer from "../features/auth/authSlice";
 import toastReducer from "../features/toast/toastSlice";
 import storeScopeReducer from "../features/store/storeScopeSlice";
@@ -17,7 +16,6 @@ export const store = configureStore({
   reducer: {
     theme: themeReducer,
     navbar: navbarReducer,
-    testimonials: testimonialsReducer,
     auth: authReducer,
     toast: toastReducer,
     storeScope: storeScopeReducer,

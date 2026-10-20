@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { BottomNav } from "@/components/dashboard/BottomNav";
 import { Topbar } from "@/components/dashboard/Topbar";
 import { ToastContainer } from "@/features/toast/ToastContainer";
+import { NewOrderAlert } from "@/components/orders/NewOrderAlert";
 
 /**
  * Coquille commune à toutes les pages du dashboard.
@@ -53,6 +54,9 @@ export default async function DashboardLayout({
         <BottomNav />
       </div>
 
+      {/* Ici et non dans la page Commandes : la cloche doit sonner sur
+          toutes les pages du dashboard. */}
+      <NewOrderAlert />
       <ToastContainer />
     </>
   );

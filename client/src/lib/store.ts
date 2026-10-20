@@ -6,6 +6,7 @@ import navbarReducer from "../features/navbar/navbarSlice";
 import authReducer from "../features/auth/authSlice";
 import toastReducer from "../features/toast/toastSlice";
 import storeScopeReducer from "../features/store/storeScopeSlice";
+import orderAlertReducer from "../features/orders/orderAlertSlice";
 import publicCartReducer from "../features/publicOrder/cartSlice";
 import menuBrowseReducer from "../features/publicOrder/browseSlice";
 import { cartListener } from "../features/publicOrder/cartListener";
@@ -19,6 +20,7 @@ export const store = configureStore({
     auth: authReducer,
     toast: toastReducer,
     storeScope: storeScopeReducer,
+    orderAlert: orderAlertReducer,
     publicCart: publicCartReducer,
     menuBrowse: menuBrowseReducer,
     [api.reducerPath]: api.reducer,

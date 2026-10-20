@@ -5,14 +5,13 @@ import { useRouter } from "next/navigation";
 import { OrderColumn } from "@/components/orders/OrderColumn";
 import { OrderFilters } from "@/components/orders/OrderFilters";
 import { OrderDetailModal } from "@/components/orders/OrderDetailModal";
-import { useNewOrderAlert } from "@/components/orders/useNewOrderAlert";
 import { Button } from "@/components/ui/Button";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useGetOrdersQuery } from "@/features/orders/orderApi";
 import { useActiveStore } from "@/features/store/useActiveStore";
-import type { Order, OrderType } from "@/types/order";
+import type { OrderType } from "@/types/order";
 
 // Filet de sécurité si le socket décroche silencieusement — l'invalidation de
 // tags reste le mécanisme principal, ce polling n'est qu'un rattrapage discret.
@@ -58,9 +57,8 @@ export default function CommandesPage() {
     [filteredOrders],
   );
 
-  // Le bip se base sur le flux non filtré : une recherche active ne doit pas
-  // couper l'alerte sonore d'une vraie nouvelle commande.
-  useNewOrderAlert(orders.filter((o: Order) => o.status === "pending"));
+  // Pas d'alerte sonore ici : NewOrderAlert, monté dans le layout, sonne sur
+  // toutes les pages et pour tous les magasins, indépendamment des filtres.
 
   if (isLoading) return <SkeletonGrid count={6} />;
 

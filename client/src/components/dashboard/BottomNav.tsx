@@ -4,13 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/features/auth/useAuth";
+import { usePendingOrders } from "@/features/orders/usePendingOrders";
 import { NAV_ITEMS, BOTTOM_NAV_PRIMARY_HREFS } from "./navConfig";
+import { PendingOrdersBadge } from "./PendingOrdersBadge";
 
 // Utilisée sous lg: la tablette posée à plat en cuisine n'a pas la place (ni
 // l'usage) pour une sidebar verticale — on préfère une barre basse au pouce.
 export function BottomNav() {
   const pathname = usePathname();
   const { isAdmin, logout } = useAuth();
+  const { count: pendingCount } = usePendingOrders();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
@@ -90,7 +93,15 @@ export function BottomNav() {
               isActive(item.href) ? "text-primary" : "text-foreground/75"
             }`}
           >
-            <span className={`${item.icon} text-2xl`} />
+            {/* Pastille posée sur le coin de l'icône : la barre n'a pas la
+                place d'en mettre une à côté du libellé. */}
+            <span className="relative inline-flex">
+              <span className={`${item.icon} text-2xl`} />
+              <PendingOrdersBadge
+                count={item.href === "/commandes" ? pendingCount : 0}
+                className="absolute -right-3 -top-1.5 ring-2 ring-surface"
+              />
+            </span>
             {item.label}
           </Link>
         ))}

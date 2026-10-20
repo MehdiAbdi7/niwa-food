@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useGetMenuItemsQuery } from "@/features/menu/menuApi";
 import { useInfiniteCarousel } from "@/features/carousel/useInfiniteCarousel";
+import { useI18n } from "@/i18n/I18nProvider";
+import { localizePath } from "@/i18n/config";
 import { BestSellerCard } from "./BestSellerCard";
 
 // L'ordre fait foi : c'est l'ordre d'affichage dans le carrousel.
@@ -24,6 +26,7 @@ const BEST_SELLER_NAMES = [
 
 export function BestSellers() {
   const { data: menuItems, isLoading, isError } = useGetMenuItemsQuery();
+  const { locale, dict } = useI18n();
 
   // useMemo obligatoire : sans lui, `bestSellers` serait un tableau neuf à
   // chaque rendu, et l'effet de recentrage du hook se rejouerait. Le
@@ -59,42 +62,46 @@ export function BestSellers() {
         <div className="mb-8 flex flex-col items-start gap-5 sm:mb-12 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="font-heading text-[2.6rem] font-bold leading-[0.95] tracking-[-0.01em] text-foreground sm:text-6xl">
-              Les plus commandés
+              {dict.bestSellers.title}
             </h2>
             <p className="mt-3 max-w-md text-base text-foreground/75 sm:text-lg">
-              Les recettes que nos clients reprennent encore et encore.
+              {dict.bestSellers.lead}
             </p>
           </div>
 
           <Link
-            href="/commande"
+            href={localizePath(locale, "/commande")}
             className="btn-press shrink-0 rounded-full bg-primary px-6 py-3 font-heading text-base font-bold text-on-primary [--edge:#5e3a2e] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-accent-green dark:[--edge:#6b4b05]"
           >
-            Voir toute la carte
+            {dict.bestSellers.seeAll}
           </Link>
         </div>
 
         {isLoading && (
           <p className="text-sm text-foreground/75">
-            Chargement des best-sellers...
+            {dict.bestSellers.loading}
           </p>
         )}
 
         {isError && (
           <p className="text-sm text-accent-bordeaux">
-            Impossible de charger le menu pour le moment.
+            {dict.bestSellers.error}
           </p>
         )}
 
+        {/* dir="ltr" sur tout le carrousel, même en arabe : la boucle infinie
+            calcule ses positions avec scrollLeft, qui devient négatif dans
+            un conteneur de droite à gauche. L'ordre des cartes n'a pas de
+            sens de lecture, et leur contenu (le menu) est en français. */}
         {!isLoading && !isError && bestSellers.length > 0 && (
-          <div className="relative">
+          <div className="relative" dir="ltr">
             {/* Flèches masquées sous sm : le swipe suffit au doigt, et deux
                 pastilles de plus encombreraient une rangée déjà dense.
                 Jamais désactivées : en boucle, il n'y a plus de bord. */}
             <button
               type="button"
               onClick={() => scrollByCard(-1)}
-              aria-label="Produits précédents"
+              aria-label={dict.bestSellers.previous}
               className="absolute -left-5 top-[40%] z-20 hidden h-12 w-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-foreground text-background shadow-[0_8px_18px_-8px_rgb(0_0_0/0.6)] transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-accent-green sm:flex"
             >
               <span aria-hidden="true" className="icon-[mdi--chevron-left] text-3xl" />
@@ -103,7 +110,7 @@ export function BestSellers() {
             <button
               type="button"
               onClick={() => scrollByCard(1)}
-              aria-label="Produits suivants"
+              aria-label={dict.bestSellers.next}
               className="absolute -right-5 top-[40%] z-20 hidden h-12 w-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-foreground text-background shadow-[0_8px_18px_-8px_rgb(0_0_0/0.6)] transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-accent-green sm:flex"
             >
               <span aria-hidden="true" className="icon-[mdi--chevron-right] text-3xl" />
@@ -124,7 +131,7 @@ export function BestSellers() {
               onScroll={handleScroll}
               {...scrollerHandlers}
               role="region"
-              aria-label="Carrousel des best-sellers"
+              aria-label={dict.bestSellers.carouselLabel}
               // Bords en fondu : les cartes coupées par le cadre s'effacent au
               // lieu de s'arrêter net.
               className="scrollbar-hide -mx-4 -my-10 flex gap-4 overflow-x-auto overscroll-x-contain px-4 py-10 [mask-image:linear-gradient(to_right,transparent,black_4%,black_96%,transparent)] sm:mx-0 sm:gap-5 sm:px-1"

@@ -20,6 +20,8 @@ import {
 import { useSectionSpy } from "@/features/publicOrder/useSectionSpy";
 import type { MenuNavGroup } from "@/features/menu/menuNav";
 import type { MenuItem } from "@/types/menuItem";
+import { useI18n } from "@/i18n/I18nProvider";
+import { pluralize } from "@/i18n/text";
 
 interface DishListProps {
   items: MenuItem[]; // déjà filtrés "disponibles" côté serveur
@@ -77,11 +79,12 @@ function SectionTitle({
           <span className="tabular-nums rounded-full bg-on-primary px-2 py-0.5 text-xs font-bold text-primary">
             {count}
           </span>
-          {/* Filet qui s'éteint vers la droite, dans la couleur du texte : un
-              filet doré disparaîtrait sur le fond doré. */}
+          {/* Filet qui s'éteint vers la droite (vers la gauche en arabe),
+              dans la couleur du texte : un filet doré disparaîtrait sur le
+              fond doré. */}
           <span
             aria-hidden="true"
-            className="h-px flex-1 bg-linear-to-r from-on-primary/50 to-transparent"
+            className="h-px flex-1 bg-linear-to-r from-on-primary/50 to-transparent rtl:bg-linear-to-l"
           />
         </div>
       </div>
@@ -105,6 +108,7 @@ export function DishList({ items, nav }: DishListProps) {
   const dispatch = useAppDispatch();
   const search = useAppSelector(selectSearch);
   const sheet = useAppSelector(selectProductSheet);
+  const { locale, dict } = useI18n();
 
   const {
     quantityByItem,
@@ -241,19 +245,25 @@ export function DishList({ items, nav }: DishListProps) {
           />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <p className="font-heading text-sm font-bold text-foreground">
-              {unavailableNotice.length > 1
-                ? "Des articles ne sont plus disponibles"
-                : "Un article n'est plus disponible"}
+              {pluralize(
+                locale,
+                dict.menu.removedTitle,
+                unavailableNotice.length,
+              )}
             </p>
             <p className="text-sm text-foreground/75">
-              {unavailableNotice.join(", ")} — retiré
-              {unavailableNotice.length > 1 ? "s" : ""} de votre panier.
+              {pluralize(
+                locale,
+                dict.menu.removedText,
+                unavailableNotice.length,
+                { names: unavailableNotice.join(", ") },
+              )}
             </p>
           </div>
           <button
             type="button"
             onClick={dismissNotice}
-            aria-label="Fermer"
+            aria-label={dict.common.close}
             className="shrink-0 text-foreground/40 transition-colors hover:text-foreground"
           >
             <span aria-hidden="true" className="icon-[mdi--close] text-lg" />
@@ -269,28 +279,25 @@ export function DishList({ items, nav }: DishListProps) {
               className="icon-[mdi--silverware-clean] text-4xl text-foreground/25"
             />
             <p className="font-heading text-lg font-bold text-foreground">
-              Rien ne correspond
+              {dict.menu.noResultTitle}
             </p>
             <p className="max-w-xs text-sm text-foreground/75">
-              Essayez un autre ingrédient, ou effacez la recherche pour
-              parcourir toute la carte.
+              {dict.menu.noResultText}
             </p>
             <button
               type="button"
               onClick={() => dispatch(filtersReset())}
               className="mt-2 rounded-full border border-primary px-5 py-2.5 text-sm font-bold text-primary transition-colors hover:bg-primary/10"
             >
-              Revoir tout le menu
+              {dict.menu.showAll}
             </button>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-foreground/75">
-              <span className="tabular-nums font-bold text-foreground">
-                {results.length}
-              </span>{" "}
-              plat{results.length > 1 ? "s" : ""} pour «&nbsp;{search.trim()}
-              &nbsp;»
+            <p className="tabular-nums text-sm text-foreground/75">
+              {pluralize(locale, dict.menu.results, results.length, {
+                query: search.trim(),
+              })}
             </p>
             {/* Deux colonnes maximum, et seulement à partir de xl. En trois
                 colonnes, la colonne de texte tombe à ~230 px : une description
@@ -321,7 +328,7 @@ export function DishList({ items, nav }: DishListProps) {
                       // lui (environ 3rem de titre + une respiration).
                       <p
                         id={subAnchorId(block.key)}
-                        className={`${ANCHOR_OFFSET} mb-2.5 pl-1 font-heading text-xs font-bold uppercase tracking-wider text-accent-mustard lg:scroll-mt-[calc(var(--sticky-top)_+_4.5rem)]`}
+                        className={`${ANCHOR_OFFSET} mb-2.5 ps-1 font-heading text-xs font-bold uppercase tracking-wider text-accent-mustard lg:scroll-mt-[calc(var(--sticky-top)_+_4.5rem)]`}
                       >
                         {block.label}
                       </p>

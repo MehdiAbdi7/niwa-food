@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { DEMO_MODE, SITE_URL } from "@/config/site";
+import { LOCALES, localizePath } from "@/i18n/config";
 
 /**
  * Génère /robots.txt au build.
@@ -29,8 +30,11 @@ export default function robots(): MetadataRoute.Robots {
         "/tables",
         "/utilisateurs",
         "/livraison",
-        "/commande/finaliser",
-        "/commande/suivi",
+        // Le tunnel de commande, dans les trois langues.
+        ...LOCALES.flatMap((locale) => [
+          localizePath(locale, "/commande/finaliser"),
+          localizePath(locale, "/commande/suivi"),
+        ]),
       ],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,

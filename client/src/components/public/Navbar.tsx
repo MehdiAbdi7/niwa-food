@@ -7,22 +7,28 @@ import { useRef } from "react";
 
 import { useNavbar } from "@/features/navbar/useNavbar";
 import { useHeightVar } from "@/lib/useHeightVar";
+import { useI18n } from "@/i18n/I18nProvider";
+import { localizePath, stripLocale } from "@/i18n/config";
 import { ThemeToggle } from "./themeToggle";
 import { CartButton } from "./CartButton";
 import { TrackOrderButton } from "./TrackOrderButton";
 import { DemoBanner } from "./DemoBanner";
+import { LanguageMenu, LanguageSwitcher } from "./LanguageSwitcher";
 
 // « Suivi » rejoint la barre : c'est la seule façon, pour un client qui a
 // fermé son onglet ou changé de téléphone, de retrouver sa commande. Le
 // raccourci TrackOrderButton ne couvre que le même appareil, et son TTL est
 // de six heures.
+//
+// Adresses SANS langue : localizePath() ajoute le préfixe au rendu. Le
+// libellé est une clé de dict.nav.
 const NAV_LINKS = [
-  { href: "/", label: "Accueil" },
-  { href: "/commande", label: "Menu" },
-  { href: "/commande/suivi", label: "Suivi" },
-  { href: "/a-propos", label: "À propos" },
-  { href: "/contact", label: "Contact" },
-];
+  { href: "/", label: "home" },
+  { href: "/commande", label: "menu" },
+  { href: "/commande/suivi", label: "tracking" },
+  { href: "/a-propos", label: "about" },
+  { href: "/contact", label: "contact" },
+] as const;
 
 // L'accueil doit être une correspondance EXACTE : startsWith("/") serait vrai
 // pour toutes les routes du site, et les liens s'allumeraient ensemble.
@@ -40,7 +46,9 @@ function isActiveLink(pathname: string, href: string): boolean {
 
 const Navbar = () => {
   const { isScrolled, isMenuOpen, toggleMenu, closeMenu } = useNavbar();
-  const pathname = usePathname();
+  const { locale, dict } = useI18n();
+  // Sans la langue : "/ar/contact" et "/contact" allument le même lien.
+  const pathname = stripLocale(usePathname());
 
   // Hauteur publiée pour les éléments collants de la carte (voir useHeightVar).
   const headerRef = useRef<HTMLElement>(null);
@@ -62,7 +70,7 @@ const Navbar = () => {
       <DemoBanner />
       <nav className="mx-auto max-w-5xl flex w-full items-center justify-between border-b border-primary lg:border-none px-2 py-2 text-primary transition-colors duration-300 ease-in-out sm:justify-between">
         <Link
-          href="/"
+          href={localizePath(locale, "/")}
           className="flex items-center justify-center gap-0.5 sm:gap-1 "
           onClick={closeMenu}
         >
@@ -97,7 +105,7 @@ const Navbar = () => {
             return (
               <Link
                 key={link.href}
-                href={link.href}
+                href={localizePath(locale, link.href)}
                 // aria-current plutôt qu'une simple couleur : la page courante
                 // doit être annoncée, pas seulement montrée.
                 aria-current={isActive ? "page" : undefined}
@@ -107,12 +115,13 @@ const Navbar = () => {
                     : "text-foreground dark:text-foreground hover:text-accent-mustard-text"
                 }`}
               >
-                {link.label}
+                {dict.nav[link.label]}
                 {/* Le soulignement est déjà déployé sur la page courante, et
                     se déploie au survol ailleurs : une seule mécanique pour
-                    deux états, donc rien de nouveau à comprendre. */}
+                    deux états, donc rien de nouveau à comprendre. Il part du
+                    début de la lecture : de la gauche, de la droite en arabe. */}
                 <span
-                  className={`absolute bottom-0 left-0 h-0.5 w-full origin-left bg-accent-mustard transition-transform duration-500 ease-out ${
+                  className={`absolute bottom-0 start-0 h-0.5 w-full origin-left bg-accent-mustard transition-transform duration-500 ease-out rtl:origin-right ${
                     isActive
                       ? "scale-x-100"
                       : "scale-x-0 group-hover:scale-x-100"
@@ -133,18 +142,22 @@ const Navbar = () => {
               (autre téléphone, navigation privée, localStorage vidé). */}
           <TrackOrderButton />
           <CartButton />
-          <ThemeToggle />
+          {/* Dans la barre à partir de md seulement : sur téléphone, les
+              langues sont dans le panneau du menu, la barre n'a plus la
+              place. */}
+          <LanguageMenu className="hidden md:block" />
+          <ThemeToggle label={dict.nav.toggleTheme} />
           <Link
-            href="/commande"
+            href={localizePath(locale, "/commande")}
             className="hidden rounded-full bg-primary px-5 py-2 font-bold text-background transition-all duration-200 ease-in-out hover:scale-105 hover:bg-accent-green lg:inline-block"
           >
-            Commander
+            {dict.common.order}
           </Link>
 
           {/* Bouton hamburger — visible uniquement mobile */}
           <button
             onClick={toggleMenu}
-            aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+            aria-label={isMenuOpen ? dict.nav.closeMenu : dict.nav.openMenu}
             aria-expanded={isMenuOpen}
             aria-controls="mobile-menu"
             className="relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-current/10 md:hidden"
@@ -177,7 +190,9 @@ const Navbar = () => {
         aria-hidden="true"
       />
 
-      {/* Panneau mobile — slide depuis la droite.
+      {/* Panneau mobile — slide depuis la droite (depuis la gauche en
+          arabe : end-0 et rtl:-translate-x-full le font sortir du côté où
+          se termine la lecture).
           aria-labelledby et non aria-label : un rôle "dialog" sans nom
           accessible est annoncé « dialogue » tout court, sans dire lequel.
           On pointe vers le titre visible du panneau plutôt que de dupliquer
@@ -187,15 +202,15 @@ const Navbar = () => {
         role="dialog"
         aria-modal="true"
         aria-labelledby="mobile-menu-title"
-        className={`fixed top-0 right-0 z-40 h-dvh w-full  bg-background text-white shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${
-          isMenuOpen ? "translate-x-0" : "translate-x-full"
+        className={`fixed top-0 end-0 z-40 h-dvh w-full  bg-background text-white shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${
+          isMenuOpen ? "translate-x-0" : "translate-x-full rtl:-translate-x-full"
         }`}
       >
         <div className="flex h-full flex-col">
           {/* En-tête du panneau : logo + croix de fermeture */}
           <div className="flex items-center justify-between border-b border-on-primary/10 px-4 py-4">
             <Link
-              href="/"
+              href={localizePath(locale, "/")}
               id="mobile-menu-title"
               className="flex items-center justify-center gap-0.5 sm:gap-1 shadow-[0_0_20px_5px_rgba(217,169,77,0.45)] shadow-primary/30 rounded-4xl px-4 "
               onClick={closeMenu}
@@ -214,7 +229,7 @@ const Navbar = () => {
             </Link>
             <button
               onClick={closeMenu}
-              aria-label="Fermer le menu"
+              aria-label={dict.nav.closeMenu}
               className="flex h-9 w-9 text-primary cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-on-primary/10"
             >
               <svg
@@ -243,7 +258,7 @@ const Navbar = () => {
               return (
                 <Link
                   key={link.href}
-                  href={link.href}
+                  href={localizePath(locale, link.href)}
                   onClick={closeMenu}
                   aria-current={isActive ? "page" : undefined}
                   // Hors du parcours clavier quand le panneau est refermé : il
@@ -260,10 +275,10 @@ const Navbar = () => {
                   } ${
                     isMenuOpen
                       ? "translate-x-0 opacity-100"
-                      : "translate-x-4 opacity-0"
+                      : "translate-x-4 opacity-0 rtl:-translate-x-4"
                   }`}
                 >
-                  {link.label}
+                  {dict.nav[link.label]}
                   {isActive && (
                     <span
                       aria-hidden="true"
@@ -275,15 +290,22 @@ const Navbar = () => {
             })}
           </div>
 
-          {/* CTA en bas du panneau */}
-          <div className="px-6 pb-8">
+          {/* Langue et CTA en bas du panneau */}
+          <div className="flex flex-col items-center gap-5 px-6 pb-8">
+            {/* invisible quand le panneau est fermé : il reste dans le DOM,
+                translaté hors écran, et ses liens seraient encore
+                focalisables (même garde que le tabIndex des liens). */}
+            <LanguageSwitcher
+              onSelect={closeMenu}
+              className={isMenuOpen ? "" : "invisible"}
+            />
             <Link
-              href="/commande"
+              href={localizePath(locale, "/commande")}
               onClick={closeMenu}
               tabIndex={isMenuOpen ? undefined : -1}
-              className="block rounded-full border-b border-primary bg-on-primary px-5 py-3 text-center font-bold text-primary transition-colors duration-200 hover:bg-background hover:text-accent-slate"
+              className="block w-full rounded-full border-b border-primary bg-on-primary px-5 py-3 text-center font-bold text-primary transition-colors duration-200 hover:bg-background hover:text-accent-slate"
             >
-              Commander
+              {dict.common.order}
             </Link>
           </div>
         </div>

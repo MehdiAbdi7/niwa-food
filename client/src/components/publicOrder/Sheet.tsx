@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { lockScroll, unlockScroll } from "@/lib/scrollLock";
+import { useI18n } from "@/i18n/I18nProvider";
 
 const EXIT_MS = 220;
 
@@ -40,6 +41,7 @@ export function Sheet({
   placement = "center",
 }: SheetProps) {
   const [phase, setPhase] = useState<"enter" | "open" | "exit">("enter");
+  const { dict } = useI18n();
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setPhase("open"));
@@ -96,7 +98,7 @@ export function Sheet({
     >
       <button
         type="button"
-        aria-label="Fermer"
+        aria-label={dict.common.close}
         onClick={close}
         className={`absolute inset-0 cursor-default bg-black/50 backdrop-blur-[2px] transition-opacity duration-200 ${
           isOpen ? "opacity-100" : "opacity-0"

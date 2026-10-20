@@ -1,40 +1,58 @@
 import Link from "next/link";
-import type { Metadata } from "next";
+import type { Metadata, ResolvingMetadata } from "next";
+import { notFound } from "next/navigation";
 import { FixedBackground } from "@/components/public/FixedBackground";
 import { PageHero } from "@/components/public/PageHero";
 import { StoreCard } from "@/components/public/StoreCard";
-import { OPENING_HOURS, SOCIALS, STORE_LOCATIONS } from "@/config/locations";
+import {
+  OPENING_HOURS,
+  SOCIALS,
+  STORE_LOCATIONS,
+  formatHourRange,
+} from "@/config/locations";
+import { hasLocale, localizePath } from "@/i18n/config";
+import { getDictionary } from "@/i18n/getDictionary";
+import { fill } from "@/i18n/text";
 
-export const metadata: Metadata = {
-  title: "Nous contacter — Niwa Food",
-  description:
-    "Niwa Food à Kouba (0552 52 00 76) et Chéraga (0549 18 97 27). Ouvert de 11h à 00h30, vendredi à partir de 18h. Sur place, à emporter ou en livraison.",
-  openGraph: {
-    title: "Nous contacter — Niwa Food",
-    description:
-      "Deux adresses à Alger, ouvertes jusqu'à 00h30. Sur place, à emporter ou en livraison.",
-  },
-};
+interface PageProps {
+  params: Promise<{ lang: string }>;
+}
 
-const SERVICE_MODES = [
-  {
-    icon: "icon-[mdi--silverware-fork-knife]",
-    title: "Sur place",
-    text: "Installez-vous, scannez le QR code de la table et commandez sans faire la queue.",
-  },
-  {
-    icon: "icon-[mdi--bag-checked]",
-    title: "À emporter",
-    text: "Commandez depuis le site, passez récupérer au comptoir quand c'est prêt.",
-  },
-  {
-    icon: "icon-[mdi--moped]",
-    title: "Livraison",
-    text: "Disponible autour de Kouba et de Chéraga. Les frais dépendent de l'adresse et vous sont confirmés avant l'envoi.",
-  },
+export async function generateMetadata(
+  { params }: PageProps,
+  parent: ResolvingMetadata,
+): Promise<Metadata> {
+  const { lang } = await params;
+  if (!hasLocale(lang)) return {};
+  const { contactPage } = getDictionary(lang);
+
+  // Même raison que dans a-propos : sans elle, l'aperçu perdrait son image.
+  const parentImages = (await parent).openGraph?.images ?? [];
+
+  return {
+    title: contactPage.metaTitle,
+    description: contactPage.metaDescription,
+    openGraph: {
+      title: contactPage.metaTitle,
+      description: contactPage.ogDescription,
+      images: parentImages,
+    },
+  };
+}
+
+// Une icône par mode de service, dans l'ordre de dict.contactPage.modes.
+const SERVICE_MODE_ICONS = [
+  "icon-[mdi--silverware-fork-knife]",
+  "icon-[mdi--bag-checked]",
+  "icon-[mdi--moped]",
 ];
 
-export default function ContactPage() {
+export default async function ContactPage({ params }: PageProps) {
+  const { lang } = await params;
+  if (!hasLocale(lang)) notFound();
+  const dict = getDictionary(lang);
+  const page = dict.contactPage;
+
   return (
     <>
       <FixedBackground />
@@ -43,21 +61,26 @@ export default function ContactPage() {
           positionné, donc peint APRÈS les fonds des éléments non positionnés. */}
       <div className="relative z-10 mx-auto w-full max-w-5xl px-4 pb-20 pt-28 sm:pt-32">
         <PageHero
-          eyebrow="Où nous trouver"
+          eyebrow={page.eyebrow}
           title={
             <>
-              Deux adresses,
+              {page.titleStart}
               <br className="hidden sm:block" />{" "}
-              <span className="text-primary">un seul régal</span>
+              <span className="text-primary">{page.titleHighlight}</span>
             </>
           }
-          lead="Kouba et Chéraga, ouvertes tous les jours jusqu'à 00h30. Un appel suffit pour commander, et le site fait le reste."
+          lead={page.lead}
         />
 
         {/* ---------- Les adresses ---------- */}
         <section className="mt-10 grid gap-5 md:grid-cols-2">
           {STORE_LOCATIONS.map((location) => (
-            <StoreCard key={location.slug} location={location} />
+            <StoreCard
+              key={location.slug}
+              location={location}
+              locale={lang}
+              dict={dict}
+            />
           ))}
         </section>
 
@@ -73,23 +96,26 @@ export default function ContactPage() {
             />
             <div>
               <h2 className="font-heading text-lg font-bold text-foreground">
-                Horaires d&apos;ouverture
+                {page.hoursTitle}
               </h2>
-              <p className="text-sm text-foreground/75">
-                Identiques sur les deux adresses.
-              </p>
+              <p className="text-sm text-foreground/75">{page.hoursNote}</p>
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 sm:text-right">
+          <div className="flex flex-col gap-1.5 sm:text-end">
             {OPENING_HOURS.map((slot) => (
               <div
                 key={slot.days}
                 className="flex items-baseline justify-between gap-6 sm:justify-end"
               >
-                <span className="text-sm text-foreground/70">{slot.days}</span>
-                <span className="tabular-nums font-heading text-base font-bold text-accent-green">
-                  {slot.hours}
+                <span className="text-sm text-foreground/70">
+                  {dict.hours[slot.days]}
+                </span>
+                <span
+                  dir="ltr"
+                  className="tabular-nums font-heading text-base font-bold text-accent-green"
+                >
+                  {formatHourRange(slot, lang)}
                 </span>
               </div>
             ))}
@@ -100,22 +126,22 @@ export default function ContactPage() {
         <section className="mt-16">
           <div className="mb-6 flex flex-col gap-2">
             <span className="font-heading text-sm font-bold uppercase tracking-wide text-accent-green">
-              Comment commander
+              {page.howEyebrow}
             </span>
             <h2 className="font-heading text-2xl font-bold text-foreground sm:text-3xl">
-              Trois façons de manger chez nous
+              {page.howTitle}
             </h2>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            {SERVICE_MODES.map((mode) => (
+            {page.modes.map((mode, index) => (
               <article
                 key={mode.title}
                 className="flex flex-col items-center gap-2.5 rounded-2xl border border-primary/25 bg-background/60 p-5 text-center backdrop-blur-sm dark:bg-primary/10"
               >
                 <span
                   aria-hidden="true"
-                  className={`${mode.icon} text-3xl text-accent-green`}
+                  className={`${SERVICE_MODE_ICONS[index]} text-3xl text-accent-green`}
                 />
                 <h3 className="font-heading text-base font-bold text-foreground">
                   {mode.title}
@@ -135,21 +161,20 @@ export default function ContactPage() {
             d'un fast-food sont le téléphone et les messages privés. */}
         <section className="mt-16 flex flex-col items-center gap-4 rounded-4xl border border-primary bg-background/70 px-6 py-10 text-center shadow-[0_0_30px_-8px_rgba(217,169,77,0.7)] backdrop-blur-md dark:bg-primary/15">
           <h2 className="font-heading text-2xl font-bold text-foreground sm:text-3xl">
-            Une question, une remarque ?
+            {page.questionTitle}
           </h2>
           <p className="max-w-md text-sm text-foreground/70">
-            Appelez l&apos;adresse la plus proche, ou écrivez-nous en message
-            privé — on répond tous les jours pendant le service.
+            {page.questionText}
           </p>
 
           <div className="mt-1 flex flex-wrap items-center justify-center gap-2.5">
             {SOCIALS.map((social) => (
               <Link
-                key={social.label}
+                key={social.name}
                 href={social.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={social.label}
+                aria-label={fill(dict.socialLabel, { network: social.name })}
                 className={`flex h-12 items-center gap-2 rounded-full px-5 font-heading text-sm font-bold transition-transform duration-300 motion-safe:hover:scale-105 ${social.bg} ${social.text}`}
               >
                 <span
@@ -162,13 +187,13 @@ export default function ContactPage() {
           </div>
 
           <Link
-            href="/commande"
+            href={localizePath(lang, "/commande")}
             className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-heading font-bold text-on-primary transition-all duration-300 hover:bg-accent-slate motion-safe:hover:scale-105"
           >
-            Passer commande
+            {page.placeOrder}
             <span
               aria-hidden="true"
-              className="icon-[line-md--arrow-right-circle-twotone] text-xl"
+              className="icon-[line-md--arrow-right-circle-twotone] text-xl rtl:-scale-x-100"
             />
           </Link>
         </section>

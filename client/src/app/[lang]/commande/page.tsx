@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { publicFetch } from "@/lib/publicFetch";
 import { buildMenuNav } from "@/features/menu/menuNav";
 import { FixedBackground } from "@/components/public/FixedBackground";
@@ -7,12 +9,21 @@ import { DishList } from "@/components/publicOrder/DishList";
 import { CartBar } from "@/components/publicOrder/CartBar";
 import { StoreClosedNotice } from "@/components/publicOrder/StoreClosedNotice";
 import type { MenuCategory, MenuItem } from "@/types/menuItem";
+import { hasLocale, localizePath } from "@/i18n/config";
+import { getDictionary } from "@/i18n/getDictionary";
 
-export const metadata = {
-  title: "Commander — Niwa Food",
-  description:
-    "Composez votre commande Niwa Food : sur place, à emporter ou en livraison à Kouba et Chéraga.",
-};
+interface PageProps {
+  params: Promise<{ lang: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { lang } = await params;
+  if (!hasLocale(lang)) return {};
+  const { menu } = getDictionary(lang);
+  return { title: menu.metaTitle, description: menu.metaDescription };
+}
 
 // Le menu change quelques fois par jour, pas par minute : une minute de cache
 // suffit largement et évite de taper le backend Render à chaque scan de QR.
@@ -33,7 +44,11 @@ export const revalidate = 60;
  * « ouvert » jusqu'à une minute après la fermeture. StoreClosedNotice le lit
  * côté client, où il est toujours frais.
  */
-export default async function CommandePage() {
+export default async function CommandePage({ params }: PageProps) {
+  const { lang } = await params;
+  if (!hasLocale(lang)) notFound();
+  const dict = getDictionary(lang);
+
   const [items, categories] = await Promise.all([
     publicFetch<MenuItem[]>("/menu-items"),
     publicFetch<MenuCategory[]>("/menu-categories"),
@@ -47,23 +62,23 @@ export default async function CommandePage() {
         <div className="relative z-10 mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center gap-3 px-6 text-center">
           <span className="icon-[mdi--wifi-off] text-5xl text-foreground/25" />
           <h1 className="font-heading text-xl font-bold text-foreground">
-            Le menu est momentanément indisponible
+            {dict.menu.unavailableTitle}
           </h1>
           <p className="text-sm text-foreground/75">
-            Rechargez la page dans un instant, ou appelez-nous directement.
+            {dict.menu.unavailableText}
           </p>
           {/* <a> natif : cette page peut s'afficher avant même le chargement du JS */}
           <a
-            href="/commande"
+            href={localizePath(lang, "/commande")}
             className="mt-2 rounded-full bg-primary px-6 py-3 font-bold text-on-primary"
           >
-            Réessayer
+            {dict.common.retry}
           </a>
           <Link
-            href="/#contact"
+            href={localizePath(lang, "/#contact")}
             className="text-sm font-semibold text-accent-green"
           >
-            Voir nos numéros
+            {dict.common.seeNumbers}
           </Link>
         </div>
       </>
@@ -107,14 +122,12 @@ export default async function CommandePage() {
           <div className="min-w-0 flex-1">
             <header className="mb-6 flex flex-col gap-1.5">
               <span className="font-heading text-sm font-bold uppercase tracking-wide text-accent-green">
-                Notre carte
+                {dict.menu.eyebrow}
               </span>
               <h1 className="font-heading text-3xl font-bold leading-tight text-foreground sm:text-4xl">
-                Composez votre commande
+                {dict.menu.title}
               </h1>
-              <p className="text-sm text-foreground/75">
-                Sur place, à emporter ou en livraison. Vous choisirez à la fin.
-              </p>
+              <p className="text-sm text-foreground/75">{dict.menu.lead}</p>
             </header>
 
             <DishList items={availableItems} nav={nav} />

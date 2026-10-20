@@ -175,6 +175,25 @@
   --color-sticker-ink: var(--sticker-ink);
 }
 
+/* Pages en arabe (<html lang="ar">, posé par app/[lang]/layout.tsx).
+   Baloo Bhaijaan 2 est la version arabe de Baloo 2 : mêmes formes rondes,
+   même identité. Le texte courant passe en Noto Sans Arabic, DM Sans n'ayant
+   pas de lettres arabes. DM Sans reste en second : les noms des plats, en
+   français, l'utilisent toujours. Ces deux polices ne sont téléchargées que
+   par les pages en arabe. */
+html[lang="ar"] {
+  --font-heading: "Baloo Bhaijaan 2 Variable", "Baloo 2", system-ui, sans-serif;
+  --font-body:
+    "Noto Sans Arabic Variable", "DM Sans Variable", system-ui, sans-serif;
+}
+
+/* L'espacement entre les lettres (classes tracking-*) sépare les lettres
+   arabes, qui s'écrivent attachées. Règle hors @layer : elle passe devant les
+   classes utilitaires de Tailwind, qui sont toutes dans une couche. */
+html[lang="ar"] [class*="tracking-"] {
+  letter-spacing: 0;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -450,9 +469,12 @@ button,
   }
 }
 
+/* --marquee-shift : -50 % par défaut, +50 % en arabe (voir .marquee-track).
+   En arabe, la piste part du bord droit et déborde à gauche : pour faire
+   entrer sa seconde moitié, elle doit glisser vers la droite. */
 @keyframes marquee-scroll {
   to {
-    transform: translateX(-50%);
+    transform: translateX(var(--marquee-shift, -50%));
   }
 }
 
@@ -604,6 +626,10 @@ button,
 
   .marquee-track {
     animation: marquee-scroll var(--marquee-duration, 40s) linear infinite;
+  }
+
+  [dir="rtl"] .marquee-track {
+    --marquee-shift: 50%;
   }
 
   .marquee-track[data-direction="reverse"] {

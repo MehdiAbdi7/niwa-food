@@ -4,15 +4,22 @@ import Link from "next/link";
 import { useOrderTracking } from "@/features/publicOrder/useOrderTracking";
 import { formatDA, formatTime } from "@/lib/format";
 import { formatVariantLabel } from "@/lib/variantLabel";
-import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS } from "@/lib/orderLabels";
-import { STORE_LABELS } from "@/types/store";
+import { ORDER_TYPE_ICONS } from "@/lib/orderLabels";
 import type { OrderItem, OrderStatus, OrderType } from "@/types/order";
+import { useI18n } from "@/i18n/I18nProvider";
+import { localizePath } from "@/i18n/config";
+import { fill } from "@/i18n/text";
 
+// Le texte de chaque étape (libellé, indication) vient du dictionnaire :
+// dict.tracking.steps[mode][statut].
 interface Step {
   status: OrderStatus;
+  icon: string;
+}
+
+interface StepText {
   label: string;
   hint: string;
-  icon: string;
 }
 
 /**
@@ -34,74 +41,25 @@ interface Step {
  */
 const STEPS_BY_TYPE: Record<OrderType, Step[]> = {
   dine_in: [
-    {
-      status: "pending",
-      label: "Commande reçue",
-      hint: "C'est en préparation.",
-      icon: "icon-[mdi--chef-hat]",
-    },
-    {
-      status: "ready",
-      label: "Prête",
-      hint: "On vous l'apporte à table.",
-      icon: "icon-[mdi--room-service-outline]",
-    },
-    {
-      status: "completed",
-      label: "Servie",
-      hint: "Bon appétit !",
-      icon: "icon-[mdi--silverware-fork-knife]",
-    },
+    { status: "pending", icon: "icon-[mdi--chef-hat]" },
+    { status: "ready", icon: "icon-[mdi--room-service-outline]" },
+    { status: "completed", icon: "icon-[mdi--silverware-fork-knife]" },
   ],
   takeaway: [
-    {
-      status: "pending",
-      label: "Commande reçue",
-      hint: "C'est en préparation.",
-      icon: "icon-[mdi--chef-hat]",
-    },
-    {
-      status: "ready",
-      label: "Prête à récupérer",
-      hint: "Présentez-vous au comptoir.",
-      icon: "icon-[mdi--bag-checked]",
-    },
-    {
-      status: "completed",
-      label: "Récupérée",
-      hint: "Bon appétit !",
-      icon: "icon-[mdi--check-all]",
-    },
+    { status: "pending", icon: "icon-[mdi--chef-hat]" },
+    { status: "ready", icon: "icon-[mdi--bag-checked]" },
+    { status: "completed", icon: "icon-[mdi--check-all]" },
   ],
   delivery: [
-    {
-      status: "pending",
-      label: "Commande reçue",
-      hint: "C'est en préparation.",
-      icon: "icon-[mdi--chef-hat]",
-    },
-    {
-      status: "ready",
-      label: "Prête",
-      hint: "Elle part bientôt.",
-      icon: "icon-[mdi--package-variant-closed]",
-    },
-    {
-      status: "out_for_delivery",
-      label: "En route",
-      hint: "Le livreur est parti.",
-      icon: "icon-[mdi--moped]",
-    },
-    {
-      status: "completed",
-      label: "Livrée",
-      hint: "Bon appétit !",
-      icon: "icon-[mdi--check-all]",
-    },
+    { status: "pending", icon: "icon-[mdi--chef-hat]" },
+    { status: "ready", icon: "icon-[mdi--package-variant-closed]" },
+    { status: "out_for_delivery", icon: "icon-[mdi--moped]" },
+    { status: "completed", icon: "icon-[mdi--check-all]" },
   ],
 };
 
 function OrderLine({ item }: { item: OrderItem }) {
+  const { locale, dict } = useI18n();
   // Défensif comme partout ailleurs : d'anciennes commandes peuvent avoir ces
   // champs absents malgré le default du schéma, qui ne joue qu'à la création.
   const extras = item.selectedExtras ?? [];
@@ -117,11 +75,14 @@ function OrderLine({ item }: { item: OrderItem }) {
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="truncate font-heading text-sm font-bold text-foreground">
+          <p
+            dir="auto"
+            className="truncate font-heading text-sm font-bold text-foreground"
+          >
             {item.name}
           </p>
           <span className="tabular-nums shrink-0 font-heading text-sm font-bold text-foreground">
-            {formatDA((item.unitPrice + extrasTotal) * item.quantity)}
+            {formatDA((item.unitPrice + extrasTotal) * item.quantity, locale)}
           </span>
         </div>
 
@@ -145,13 +106,15 @@ function OrderLine({ item }: { item: OrderItem }) {
 
         {excluded.length > 0 && (
           <p className="text-xs text-accent-bordeaux">
-            sans {excluded.join(", ")}
+            {dict.common.without} {excluded.join(", ")}
           </p>
         )}
 
         {item.quantity > 1 && (
           <p className="tabular-nums text-xs text-foreground/40">
-            {formatDA(item.unitPrice + extrasTotal)} l&apos;unité
+            {fill(dict.common.perUnit, {
+              price: formatDA(item.unitPrice + extrasTotal, locale),
+            })}
           </p>
         )}
       </div>
@@ -162,6 +125,8 @@ function OrderLine({ item }: { item: OrderItem }) {
 export function OrderTrackingView({ orderId }: { orderId: string }) {
   const { order, isLoading, isError, refetch, isLive } =
     useOrderTracking(orderId);
+  const { locale, dict } = useI18n();
+  const texts = dict.tracking;
 
   if (isLoading) {
     return (
@@ -176,32 +141,30 @@ export function OrderTrackingView({ orderId }: { orderId: string }) {
       <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center gap-3 px-6 text-center">
         <span className="icon-[mdi--receipt-text-remove-outline] text-5xl text-foreground/25" />
         <h1 className="font-heading text-xl font-bold text-foreground">
-          Commande introuvable
+          {texts.notFoundTitle}
         </h1>
-        <p className="text-sm text-foreground/75">
-          Elle a peut-être été supprimée, ou le lien est incomplet.
-        </p>
+        <p className="text-sm text-foreground/75">{texts.notFoundText}</p>
         <button
           type="button"
           onClick={() => refetch()}
           className="mt-2 rounded-full border border-primary px-6 py-3 text-sm font-bold text-primary transition-colors hover:bg-primary/10"
         >
-          Réessayer
+          {dict.common.retry}
         </button>
         {/* Deux sorties : reprendre une commande, ou retrouver la sienne par
             son numéro si c'est le lien qui est cassé. */}
         <div className="mt-1 flex flex-wrap items-center justify-center gap-3">
           <Link
-            href="/commande"
+            href={localizePath(locale, "/commande")}
             className="text-sm font-semibold text-accent-green"
           >
-            Retour à la carte
+            {dict.common.backToMenu}
           </Link>
           <Link
-            href="/commande/suivi"
+            href={localizePath(locale, "/commande/suivi")}
             className="text-sm font-semibold text-primary underline"
           >
-            Chercher par numéro
+            {texts.searchByNumber}
           </Link>
         </div>
       </div>
@@ -210,8 +173,10 @@ export function OrderTrackingView({ orderId }: { orderId: string }) {
 
   const isCancelled = order.status === "cancelled";
   const steps = STEPS_BY_TYPE[order.type];
+  const stepTexts: Record<string, StepText> = texts.steps[order.type];
   const currentIndex = steps.findIndex((step) => step.status === order.status);
   const currentStep = steps[Math.max(0, currentIndex)];
+  const currentText = stepTexts[currentStep.status];
 
   // `?? 0` obligatoire : les commandes antérieures au code promo n'ont pas ce
   // champ, et `undefined` dans une soustraction donne NaN — donc un total
@@ -229,12 +194,12 @@ export function OrderTrackingView({ orderId }: { orderId: string }) {
       <header className="mb-6 flex flex-col items-center gap-2 text-center">
         <span className="flex items-center gap-1.5 font-heading text-xs font-bold uppercase tracking-wide text-accent-green">
           <span className={`${ORDER_TYPE_ICONS[order.type]} text-base`} />
-          {ORDER_TYPE_LABELS[order.type]} · {STORE_LABELS[order.store]}
+          {dict.orderTypes[order.type]} · {dict.stores[order.store].name}
         </span>
 
         <div className="flex items-baseline gap-2">
           <span className="font-heading text-sm font-bold text-foreground/75">
-            Commande
+            {texts.order}
           </span>
           <span className="tabular-nums font-heading text-5xl font-bold leading-none text-primary">
             #{order.dailyNumber}
@@ -242,7 +207,8 @@ export function OrderTrackingView({ orderId }: { orderId: string }) {
         </div>
 
         <p className="text-sm text-foreground/75">
-          {order.client.fullName} · passée à {formatTime(order.createdAt)}
+          <bdi>{order.client.fullName}</bdi> ·{" "}
+          {fill(texts.placedAt, { time: formatTime(order.createdAt, locale) })}
         </p>
 
         {/* Le client doit savoir s'il regarde du direct ou une page qui se
@@ -253,7 +219,7 @@ export function OrderTrackingView({ orderId }: { orderId: string }) {
               isLive ? "bg-accent-green" : "bg-foreground/30"
             }`}
           />
-          {isLive ? "Suivi en direct" : "Actualisation automatique"}
+          {isLive ? texts.live : texts.polling}
         </span>
       </header>
 
@@ -261,26 +227,25 @@ export function OrderTrackingView({ orderId }: { orderId: string }) {
         <div className="mb-6 flex flex-col items-center gap-2 rounded-3xl border border-accent-bordeaux/40 bg-accent-bordeaux/10 px-6 py-8 text-center">
           <span className="icon-[mdi--close-circle-outline] text-4xl text-accent-bordeaux" />
           <p className="font-heading text-lg font-bold text-foreground">
-            Commande annulée
+            {texts.cancelledTitle}
           </p>
           <p className="max-w-xs text-sm text-foreground/75">
-            Contactez le restaurant si vous pensez qu&apos;il s&apos;agit
-            d&apos;une erreur.
+            {texts.cancelledText}
           </p>
           <Link
-            href="/contact"
+            href={localizePath(locale, "/contact")}
             className="mt-1 text-sm font-bold text-accent-bordeaux underline"
           >
-            Voir nos numéros
+            {dict.common.seeNumbers}
           </Link>
         </div>
       ) : (
         <div className="mb-6 flex flex-col items-center gap-1.5 rounded-3xl border border-primary/25 bg-primary/5 px-6 py-6 text-center">
           <span className={`${currentStep.icon} text-4xl text-primary`} />
           <p className="font-heading text-xl font-bold text-foreground">
-            {currentStep.label}
+            {currentText.label}
           </p>
-          <p className="text-sm text-foreground/75">{currentStep.hint}</p>
+          <p className="text-sm text-foreground/75">{currentText.hint}</p>
         </div>
       )}
 
@@ -288,7 +253,7 @@ export function OrderTrackingView({ orderId }: { orderId: string }) {
       <section className="ticket-notch relative mb-6 flex flex-col rounded-3xl border border-primary/25 bg-background pb-6 dark:bg-primary/10">
         <header className="border-b border-dashed border-primary/25 px-5 py-4">
           <h2 className="font-heading text-base font-bold text-foreground">
-            Le détail
+            {texts.details}
           </h2>
         </header>
 
@@ -300,16 +265,16 @@ export function OrderTrackingView({ orderId }: { orderId: string }) {
 
         {order.remark && (
           <p className="mx-5 mt-3 rounded-xl bg-accent-mustard/10 px-3 py-2 text-xs text-foreground/75">
-            <span className="font-bold">Votre précision : </span>
-            {order.remark}
+            <span className="font-bold">{texts.remark}</span>
+            <bdi>{order.remark}</bdi>
           </p>
         )}
 
         <div className="mt-2 flex flex-col gap-1.5 border-t border-dashed border-primary/25 px-5 pt-4">
           <div className="flex items-baseline justify-between text-sm">
-            <span className="text-foreground/75">Articles</span>
+            <span className="text-foreground/75">{dict.common.itemsTotal}</span>
             <span className="tabular-nums font-semibold text-foreground/80">
-              {formatDA(itemsTotal)}
+              {formatDA(itemsTotal, locale)}
             </span>
           </div>
 
@@ -323,35 +288,35 @@ export function OrderTrackingView({ orderId }: { orderId: string }) {
                   aria-hidden="true"
                   className="icon-[mdi--ticket-percent-outline] text-base"
                 />
-                {order.appliedPromo?.code ?? "Remise"}
+                {order.appliedPromo?.code ?? dict.promo.discountFallback}
                 {order.appliedPromo &&
                   ` · −${order.appliedPromo.discountPercent}%`}
               </span>
               <span className="tabular-nums font-bold text-accent-green">
-                −{formatDA(discountAmount)}
+                −{formatDA(discountAmount, locale)}
               </span>
             </div>
           )}
 
           {order.type === "delivery" && (
             <div className="flex items-baseline justify-between text-sm">
-              <span className="text-foreground/75">Livraison</span>
+              <span className="text-foreground/75">{texts.deliveryFee}</span>
               <span className="tabular-nums font-semibold text-foreground/80">
                 {/* deliveryFee est fixé par le staff après réception : tant
                     qu'il est absent, annoncer 0 DA serait un mensonge. */}
                 {order.deliveryFee !== undefined
-                  ? formatDA(order.deliveryFee)
-                  : "à confirmer"}
+                  ? formatDA(order.deliveryFee, locale)
+                  : texts.toConfirm}
               </span>
             </div>
           )}
 
           <div className="mt-1 flex items-baseline justify-between border-t border-primary/20 pt-3">
             <span className="font-heading text-sm font-bold uppercase tracking-wide text-foreground/70">
-              Total
+              {dict.common.total}
             </span>
             <span className="tabular-nums font-heading text-2xl font-bold text-accent-green">
-              {formatDA(order.totalPrice)}
+              {formatDA(order.totalPrice, locale)}
             </span>
           </div>
         </div>
@@ -361,7 +326,7 @@ export function OrderTrackingView({ orderId }: { orderId: string }) {
       {!isCancelled && (
         <section className="flex flex-col gap-1">
           <h2 className="mb-2 font-heading text-sm font-bold uppercase tracking-wide text-foreground/70">
-            Où en est votre commande
+            {texts.progressTitle}
           </h2>
 
           {steps.map((step, index) => {
@@ -402,14 +367,16 @@ export function OrderTrackingView({ orderId }: { orderId: string }) {
                       isCurrent ? "text-foreground" : "text-foreground/75"
                     }`}
                   >
-                    {step.label}
+                    {stepTexts[step.status].label}
                   </p>
                   <p className="text-xs text-foreground/45">
-                    {isCurrent || isDone ? step.hint : "En attente"}
+                    {isCurrent || isDone
+                      ? stepTexts[step.status].hint
+                      : texts.waiting}
                   </p>
                   {isLast && order.completedAt && (
                     <p className="tabular-nums text-xs text-accent-green">
-                      {formatTime(order.completedAt)}
+                      {formatTime(order.completedAt, locale)}
                     </p>
                   )}
                 </div>
@@ -421,14 +388,12 @@ export function OrderTrackingView({ orderId }: { orderId: string }) {
 
       <div className="mt-8 flex flex-col items-center gap-2">
         <Link
-          href="/commande"
+          href={localizePath(locale, "/commande")}
           className="rounded-full border border-primary px-6 py-3 text-sm font-bold text-primary transition-colors hover:bg-primary/10"
         >
-          Commander autre chose
+          {texts.orderMore}
         </Link>
-        <p className="text-xs text-foreground/40">
-          Gardez cette page ouverte, elle se met à jour toute seule.
-        </p>
+        <p className="text-xs text-foreground/40">{texts.keepOpen}</p>
       </div>
     </div>
   );

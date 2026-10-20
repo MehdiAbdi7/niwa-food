@@ -3,32 +3,15 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useReducedMotion } from "@/features/motion/useReducedMotion";
 import { useScrollProgress } from "@/features/motion/useScrollProgress";
+import { useI18n } from "@/i18n/I18nProvider";
+import { fill } from "@/i18n/text";
 
-const STEPS = [
-  {
-    icon: "icon-[mdi--silverware-fork-knife]",
-    title: "Choisissez",
-    description:
-      "Parcourez notre menu et composez votre commande : burgers, tacos, pizzas ou salades.",
-  },
-  {
-    icon: "icon-[mdi--cart-check]",
-    title: "Commandez",
-    description:
-      "Sur place, à emporter ou en livraison à domicile, vous choisissez ce qui vous arrange.",
-  },
-  {
-    icon: "icon-[mdi--chef-hat]",
-    title: "On prépare",
-    description:
-      "Chaque plat est préparé minute dans nos cuisines, jamais à l'avance.",
-  },
-  {
-    icon: "icon-[mdi--moped]",
-    title: "Récupérez",
-    description:
-      "Récupérez sur place ou faites-vous livrer directement chez vous, encore chaud.",
-  },
+// Une icône par étape, dans l'ordre de dict.howItWorks.steps.
+const STEP_ICONS = [
+  "icon-[mdi--silverware-fork-knife]",
+  "icon-[mdi--cart-check]",
+  "icon-[mdi--chef-hat]",
+  "icon-[mdi--moped]",
 ];
 
 // Amplitude des virages de la route entre deux étapes, en px.
@@ -80,9 +63,14 @@ function buildRoad(points: Point[], horizontal: boolean): string {
  * Tout passe par des refs et des écritures directes dans le DOM : le
  * défilement met à jour la route à chaque image, un state React relancerait
  * le rendu de la section autant de fois.
+ *
+ * En arabe, la grille se lit de droite à gauche : la route part de la
+ * pastille de droite et le scooter se retourne tout seul, puisque tout est
+ * calculé sur les positions mesurées.
  */
 export function HowItWorks() {
   const prefersReducedMotion = useReducedMotion();
+  const { dict } = useI18n();
 
   const listRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -231,10 +219,10 @@ export function HowItWorks() {
       <div className="mx-auto max-w-6xl rounded-4xl border border-primary background px-5 py-12 text-foreground shadow-[0_0_25px_5px_rgba(217,169,77,0.45)] shadow-primary/30 sm:px-10 sm:py-16 dark:bg-primary/30">
         <div className="mx-auto max-w-6xl">
           <h2 className="font-heading text-[2.6rem] font-bold leading-[0.95] tracking-[-0.01em] sm:text-6xl">
-            De l&apos;écran à votre table
+            {dict.howItWorks.title}
           </h2>
           <p className="mt-3 max-w-md text-base text-foreground/80 sm:text-lg">
-            Quatre étapes, et votre commande arrive encore chaude.
+            {dict.howItWorks.lead}
           </p>
 
           {/* La route et le scooter vivent à côté de la liste et non dedans :
@@ -282,7 +270,7 @@ export function HowItWorks() {
             </div>
 
             <ol className="grid gap-12 md:grid-cols-4 md:gap-6">
-              {STEPS.map((step, index) => (
+              {dict.howItWorks.steps.map((step, index) => (
                 <li
                   key={step.title}
                   className="road-step relative z-10 flex gap-5 md:flex-col md:items-center md:text-center"
@@ -295,7 +283,7 @@ export function HowItWorks() {
                   >
                     <span
                       aria-hidden="true"
-                      className={`${step.icon} text-3xl`}
+                      className={`${STEP_ICONS[index]} text-3xl`}
                     />
                   </span>
 
@@ -306,7 +294,7 @@ export function HowItWorks() {
                       aria-hidden="true"
                       className="font-heading text-sm font-bold text-foreground/75"
                     >
-                      Étape {index + 1}
+                      {fill(dict.howItWorks.step, { number: index + 1 })}
                     </p>
                     <h3 className="font-heading text-2xl font-bold leading-tight">
                       {step.title}

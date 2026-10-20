@@ -1,6 +1,13 @@
+import { NUMBER_LOCALES, type Locale } from "@/i18n/config";
+
+// « DA » en français et en anglais, « دج » en arabe : les deux abréviations
+// qu'on lit sur les prix en Algérie.
+const CURRENCY: Record<Locale, string> = { fr: "DA", ar: "دج", en: "DA" };
+
 // Dinar algérien : pas de devise Intl standard fiable partout, on formate à la main.
-export function formatDA(value: number): string {
-  return `${value.toLocaleString("fr-FR")} DA`;
+// La langue est facultative : le back-office, en français, ne la passe pas.
+export function formatDA(value: number, locale: Locale = "fr"): string {
+  return `${value.toLocaleString(NUMBER_LOCALES[locale])} ${CURRENCY[locale]}`;
 }
 
 /**
@@ -20,10 +27,13 @@ export function formatCompactDA(value: number): string {
   return String(value);
 }
 
-export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("fr-FR", {
+// hourCycle "h23" : 19:05 dans toutes les langues. Sans lui, l'arabe et
+// l'anglais passeraient en 07:05 م / 07:05 PM, peu lu en Algérie.
+export function formatTime(iso: string, locale: Locale = "fr"): string {
+  return new Date(iso).toLocaleTimeString(NUMBER_LOCALES[locale], {
     hour: "2-digit",
     minute: "2-digit",
+    hourCycle: "h23",
   });
 }
 

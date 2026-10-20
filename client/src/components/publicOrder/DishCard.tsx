@@ -6,6 +6,8 @@ import { summarizeVariants } from "@/lib/variantLabel";
 import { hasExtras } from "@/lib/extraGroups";
 import { getEligibleFormulas } from "@/lib/formulaRules";
 import type { MenuItem } from "@/types/menuItem";
+import { useI18n } from "@/i18n/I18nProvider";
+import { fill } from "@/i18n/text";
 
 interface DishCardProps {
   item: MenuItem;
@@ -42,6 +44,7 @@ export function hasChoices(item: MenuItem): boolean {
 }
 
 export function DishCard({ item, inCart, onSelect }: DishCardProps) {
+  const { locale, dict } = useI18n();
   const configurable = hasChoices(item);
   const isInCart = inCart > 0;
 
@@ -56,29 +59,38 @@ export function DishCard({ item, inCart, onSelect }: DishCardProps) {
     <button
       type="button"
       onClick={() => onSelect(item)}
-      aria-label={`${item.name}, ${
-        configurable ? "choisir les options" : "ajouter au panier"
-      }`}
+      aria-label={fill(
+        configurable ? dict.menu.chooseOptions : dict.menu.addToCart,
+        { name: item.name },
+      )}
       // items-center et non items-stretch : dans une grille, une carte est
       // étirée à la hauteur de sa voisine. En ancrant le texte en haut et le
       // prix en bas (l'ancienne mise en page), un produit sans description —
       // une canette — se retrouvait avec 80px de vide au milieu. Centré, il
       // paraît simplement compact.
-      className={`group relative flex w-full items-center gap-3 rounded-2xl border p-3 text-left backdrop-blur-md transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-safe:hover:-translate-y-0.5 sm:gap-4 sm:p-4 ${
+      className={`group relative flex w-full items-center gap-3 rounded-2xl border p-3 text-start backdrop-blur-md transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-safe:hover:-translate-y-0.5 sm:gap-4 sm:p-4 ${
         isInCart
           ? "border-accent-green/60 bg-accent-green/5 dark:bg-accent-green/10"
           : "border-primary/25 bg-background/70 hover:border-primary/60 hover:bg-background/90 dark:bg-primary/10"
       } hover:shadow-[0_0_28px_-8px_var(--color-primary)]`}
     >
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
-        <h3 className="font-heading text-base font-bold leading-snug text-foreground">
+        {/* dir="auto" : nom et description viennent du menu, en français.
+            Sur une page en arabe, ils restent lus de gauche à droite. */}
+        <h3
+          dir="auto"
+          className="font-heading text-base font-bold leading-snug text-foreground"
+        >
           {item.name}
         </h3>
 
         {/* Entière, jamais tronquée : c'est la liste d'ingrédients, donc la
             seule information qui permet de trancher entre deux burgers. */}
         {item.description && (
-          <p className="text-sm leading-relaxed text-foreground/75">
+          <p
+            dir="auto"
+            className="text-sm leading-relaxed text-foreground/75"
+          >
             {item.description}
           </p>
         )}
@@ -108,9 +120,11 @@ export function DishCard({ item, inCart, onSelect }: DishCardProps) {
             // à être relu.
             <span className="tabular-nums inline-flex items-baseline gap-1 whitespace-nowrap rounded-full bg-accent-green/10 px-2.5 py-1 font-heading text-sm font-bold text-accent-green-text ring-1 ring-inset ring-accent-green/25">
               {item.variants.length > 1 && (
-                <span className="text-xs font-semibold">dès</span>
+                <span className="text-xs font-semibold">
+                  {dict.common.from}
+                </span>
               )}
-              {formatDA(minPrice)}
+              {formatDA(minPrice, locale)}
             </span>
           )}
 
@@ -119,7 +133,7 @@ export function DishCard({ item, inCart, onSelect }: DishCardProps) {
           {configurable && (
             <span className="hidden items-center gap-1 text-xs font-semibold text-foreground/70 sm:inline-flex">
               <span aria-hidden="true" className="icon-[mdi--tune-variant] text-sm" />
-              à composer
+              {dict.menu.toCompose}
             </span>
           )}
         </div>
@@ -165,7 +179,7 @@ export function DishCard({ item, inCart, onSelect }: DishCardProps) {
         {/* Pastille d'action, débordant sur la photo — 44px de côté, la taille
             tactile minimale, puisque tout le monde commande au téléphone. */}
         <span
-          className={`absolute -bottom-2 -right-2 flex h-11 w-11 items-center justify-center rounded-full border-2 border-background text-xl shadow-md transition-colors ${
+          className={`absolute -bottom-2 -end-2 flex h-11 w-11 items-center justify-center rounded-full border-2 border-background text-xl shadow-md transition-colors ${
             isInCart
               ? "bg-accent-green text-on-primary"
               : "bg-primary text-on-primary group-hover:bg-accent-green"

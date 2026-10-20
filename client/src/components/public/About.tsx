@@ -9,6 +9,8 @@ import {
 } from "react";
 import { useReducedMotion } from "@/features/motion/useReducedMotion";
 import { useScrollProgress } from "@/features/motion/useScrollProgress";
+import { useI18n } from "@/i18n/I18nProvider";
+import { fill } from "@/i18n/text";
 
 // « 7j/7 » et non plus « 13h+ d'ouverture par jour » : le vendredi, la
 // cuisine n'ouvre qu'à 18h, le chiffre était donc faux un jour sur sept.
@@ -33,6 +35,7 @@ const VIDEO_POSTER = "/niwa-video-poster.webp";
  */
 export function About() {
   const prefersReducedMotion = useReducedMotion();
+  const { dict } = useI18n();
   const sceneRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -133,20 +136,12 @@ export function About() {
       <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2 lg:gap-16">
         <div className="flex flex-col gap-5">
           <h2 className="font-heading text-[2.6rem] font-bold leading-[0.95] tracking-[-0.01em] text-foreground sm:text-6xl lg:text-[3.5rem]">
-            Le burger artisanal, c&apos;est notre spécialité
+            {dict.homeAbout.title}
           </h2>
           <div className="flex flex-col gap-4 text-base leading-relaxed text-foreground/80 sm:text-lg">
-            <p>
-              Chez Niwa Food, tout part d&apos;une idée simple : préparer
-              chaque burger, tacos et pizza comme s&apos;il était le premier.
-              Pain toasté minute, viande fraîche, sauces maison. Rien
-              n&apos;est préparé à l&apos;avance et laissé à attendre.
-            </p>
-            <p>
-              Depuis nos cuisines à Kouba et Chéraga, on sert celles et ceux
-              qui veulent manger vite sans sacrifier le goût : sur place, à
-              emporter, ou livré directement chez vous.
-            </p>
+            {dict.homeAbout.paragraphs.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
           </div>
         </div>
 
@@ -160,7 +155,7 @@ export function About() {
             type="button"
             onClick={togglePlay}
             aria-label={
-              isPlaying ? "Mettre la vidéo en pause" : "Lancer la vidéo"
+              isPlaying ? dict.homeAbout.pauseVideo : dict.homeAbout.playVideo
             }
             className="group relative block h-full w-full cursor-pointer overflow-hidden rounded-[2.25rem] bg-primary/15 shadow-[0_30px_60px_-30px_rgb(0_0_0/0.6)] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-accent-green"
           >
@@ -198,7 +193,9 @@ export function About() {
             <span className="font-heading text-4xl font-bold leading-none tabular-nums">
               {stats.addresses}
             </span>
-            <span className="text-sm font-bold">adresses à Alger</span>
+            <span className="text-sm font-bold">
+              {dict.homeAbout.addresses}
+            </span>
           </p>
 
           <p
@@ -208,7 +205,7 @@ export function About() {
             <span className="font-heading text-4xl font-bold leading-none tabular-nums">
               {stats.homemade}&nbsp;%
             </span>
-            <span className="text-sm font-bold">fait maison</span>
+            <span className="text-sm font-bold">{dict.homeAbout.homemade}</span>
           </p>
 
           <p
@@ -216,9 +213,9 @@ export function About() {
             style={{ "--r": "-4deg" } as CSSProperties}
           >
             <span className="font-heading text-4xl font-bold leading-none tabular-nums">
-              {stats.days}j/7
+              {fill(dict.homeAbout.daysPerWeek, { days: stats.days })}
             </span>
-            <span className="text-sm font-bold">ouvert</span>
+            <span className="text-sm font-bold">{dict.homeAbout.open}</span>
           </p>
         </div>
       </div>

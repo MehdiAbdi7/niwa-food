@@ -2,6 +2,8 @@
 
 import { useCart } from "@/features/publicOrder/useCart";
 import { formatDA } from "@/lib/format";
+import { useI18n } from "@/i18n/I18nProvider";
+import { fill, pluralize } from "@/i18n/text";
 
 /**
  * Accès au panier depuis la navbar, sur toutes les pages publiques.
@@ -14,6 +16,7 @@ import { formatDA } from "@/lib/format";
  */
 export function CartButton() {
   const { count, total, openTicket } = useCart();
+  const { locale, dict } = useI18n();
 
   if (count === 0) return null;
 
@@ -21,15 +24,17 @@ export function CartButton() {
     <button
       type="button"
       onClick={openTicket}
-      aria-label={`Voir mon panier, ${count} article${count > 1 ? "s" : ""}`}
-      className="relative flex h-9 items-center gap-2 rounded-full border-2 border-foreground/80 bg-primary/20 px-2.5 font-bold text-foreground/80 backdrop-blur-2xl transition-colors hover:border-accent-green hover:text-accent-green sm:pl-3 sm:pr-4"
+      aria-label={fill(dict.nav.cart, {
+        items: pluralize(locale, dict.common.items, count),
+      })}
+      className="relative flex h-9 items-center gap-2 rounded-full border-2 border-foreground/80 bg-primary/20 px-2.5 font-bold text-foreground/80 backdrop-blur-2xl transition-colors hover:border-accent-green hover:text-accent-green sm:ps-3 sm:pe-4"
     >
       <span className="icon-[mdi--cart] size-5" />
 
       {/* Le total n'apparaît qu'à partir de sm : sur mobile la barre est déjà
           serrée entre le logo et le hamburger, et CartBar l'affiche en bas. */}
       <span className="tabular-nums hidden text-sm sm:inline">
-        {formatDA(total)}
+        {formatDA(total, locale)}
       </span>
 
       {/* key={count} : remonte la pastille à chaque changement, ce qui rejoue
@@ -37,7 +42,7 @@ export function CartButton() {
           en compte quand on est loin de la barre du bas. */}
       <span
         key={count}
-        className="tabular-nums absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-green px-1 text-xs font-bold text-on-primary motion-safe:animate-[toastIn_0.25s_ease-out]"
+        className="tabular-nums absolute -end-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-green px-1 text-xs font-bold text-on-primary motion-safe:animate-[toastIn_0.25s_ease-out]"
       >
         {count}
       </span>

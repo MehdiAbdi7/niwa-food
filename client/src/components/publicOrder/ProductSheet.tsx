@@ -13,6 +13,8 @@ import {
 import { getEligibleFormulas, resolveEffectiveSize } from "@/lib/formulaRules";
 import type { CartLine, NewCartLine } from "@/lib/cartLine";
 import type { MenuItem } from "@/types/menuItem";
+import { useI18n } from "@/i18n/I18nProvider";
+import { fill } from "@/i18n/text";
 
 // Distance parcourue avant que la barre de titre ne devienne opaque.
 // Volontairement inférieure à la hauteur de la photo : la bascule doit se
@@ -110,6 +112,8 @@ export function ProductSheet({
   onClose,
 }: ProductSheetProps) {
   const { addLine, replaceLine, removeLine } = useCart();
+  const { locale, dict } = useI18n();
+  const texts = dict.product;
   const isEditing = initialLine !== null;
 
   // Initialiseurs paresseux, pas d'effet de reset : le composant est remonté
@@ -300,7 +304,7 @@ export function ProductSheet({
             >
               <p
                 aria-hidden="true"
-                className={`min-w-0 flex-1 truncate pl-1 font-heading text-base font-bold text-foreground transition-opacity duration-200 ${
+                className={`min-w-0 flex-1 truncate ps-1 font-heading text-base font-bold text-foreground transition-opacity duration-200 ${
                   isScrolled ? "opacity-100" : "opacity-0"
                 }`}
               >
@@ -310,7 +314,7 @@ export function ProductSheet({
               <button
                 type="button"
                 onClick={close}
-                aria-label="Fermer"
+                aria-label={dict.common.close}
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
                   isScrolled
                     ? "text-foreground/75 hover:bg-surface-2 hover:text-foreground"
@@ -386,15 +390,23 @@ export function ProductSheet({
                   Pas de marge négative : object-contain laisse déjà une marge
                   naturelle sous le produit, remonter le titre le collerait à
                   la salade. */}
+              {/* dir="auto" sur le nom et la description : ils viennent du
+                  menu, en français. Sur une page en arabe, le navigateur les
+                  lit quand même de gauche à droite (sinon le point final
+                  d'une description se retrouverait au début). */}
               <div className="flex flex-col gap-1 px-4 pt-1">
                 <h2
                   id="product-sheet-title"
+                  dir="auto"
                   className="font-heading text-2xl font-bold leading-tight text-foreground"
                 >
                   {item.name}
                 </h2>
                 {item.description && (
-                  <p className="text-sm leading-relaxed text-foreground/75">
+                  <p
+                    dir="auto"
+                    className="text-sm leading-relaxed text-foreground/75"
+                  >
                     {item.description}
                   </p>
                 )}
@@ -402,15 +414,15 @@ export function ProductSheet({
 
               <div className="flex flex-col gap-5 px-4 pb-5 pt-4">
                 {eligibleFormulas.length > 0 && (
-                  <Field title="Formule">
+                  <Field title={texts.formula}>
                     <div className="flex flex-wrap gap-2">
                       <Choice
                         isSelected={formulaId === null}
                         onClick={() => selectFormula(null)}
                       >
-                        Seul
+                        {texts.alone}
                         <span className="tabular-nums text-xs font-normal opacity-70">
-                          {formatDA(variant.price)}
+                          {formatDA(variant.price, locale)}
                         </span>
                       </Choice>
 
@@ -431,6 +443,7 @@ export function ProductSheet({
                               formula.pricingMode === "fixed"
                                 ? formula.price
                                 : variant.price + formula.price,
+                              locale,
                             )}
                           </span>
                         </Choice>
@@ -441,7 +454,9 @@ export function ProductSheet({
                       selectedFormula.includedNames.length > 0 && (
                         <p className="flex items-center gap-1.5 text-xs font-semibold text-accent-green">
                           <span className="icon-[mdi--check-circle] text-sm" />
-                          Inclus : {selectedFormula.includedNames.join(", ")}
+                          {fill(texts.included, {
+                            items: selectedFormula.includedNames.join(", "),
+                          })}
                         </p>
                       )}
                   </Field>
@@ -457,12 +472,11 @@ export function ProductSheet({
                     <Field
                       key={choice.label}
                       title={choice.label}
-                      hint={{ label: "à choisir", required: true }}
+                      hint={{ label: texts.toChoose, required: true }}
                     >
                       {options.length === 0 ? (
                         <p className="rounded-xl bg-accent-bordeaux/10 px-3 py-2 text-xs text-accent-bordeaux">
-                          Aucune option disponible pour le moment. Choisissez
-                          une autre formule.
+                          {texts.noOption}
                         </p>
                       ) : (
                         <div className="flex flex-wrap gap-2">
@@ -491,7 +505,7 @@ export function ProductSheet({
 
                 {/* Variantes — masquées quand la formule impose un format unique */}
                 {!isFixed && item.variants.length > 1 && (
-                  <Field title="Taille">
+                  <Field title={texts.size}>
                     <div className="flex flex-wrap gap-2">
                       {item.variants.map((current, index) => (
                         <Choice
@@ -501,7 +515,7 @@ export function ProductSheet({
                         >
                           {formatVariantLabel(current.combination)}
                           <span className="tabular-nums text-xs font-normal opacity-70">
-                            {formatDA(current.price)}
+                            {formatDA(current.price, locale)}
                           </span>
                         </Choice>
                       ))}
@@ -511,8 +525,9 @@ export function ProductSheet({
 
                 {isFixed && item.variants.length > 1 && (
                   <p className="rounded-xl bg-surface-2 px-3 py-2 text-xs text-foreground/75">
-                    Format unique en {selectedFormula!.name} — pas de taille à
-                    choisir.
+                    {fill(texts.fixedFormat, {
+                      formula: selectedFormula!.name,
+                    })}
                   </p>
                 )}
 
@@ -525,8 +540,8 @@ export function ProductSheet({
                     title={group.label}
                     hint={
                       group.singleChoice
-                        ? { label: "un seul choix" }
-                        : { label: "facultatif" }
+                        ? { label: texts.singleChoice }
+                        : { label: dict.common.optional }
                     }
                   >
                     <div className="flex flex-wrap gap-2">
@@ -555,7 +570,7 @@ export function ProductSheet({
                             {option.extra.name}
                             {price > 0 && (
                               <span className="tabular-nums text-xs font-normal opacity-70">
-                                +{formatDA(price)}
+                                +{formatDA(price, locale)}
                               </span>
                             )}
                           </Choice>
@@ -567,7 +582,10 @@ export function ProductSheet({
 
                 {item.removableIngredients &&
                   item.removableIngredients.length > 0 && (
-                    <Field title="Retirer" hint={{ label: "facultatif" }}>
+                    <Field
+                      title={texts.remove}
+                      hint={{ label: dict.common.optional }}
+                    >
                       <div className="flex flex-wrap gap-2">
                         {item.removableIngredients.map((ingredient) => {
                           const isExcluded = excluded.includes(ingredient);
@@ -609,7 +627,7 @@ export function ProductSheet({
                     className="flex items-center justify-center gap-2 rounded-xl border border-accent-bordeaux/30 py-3 text-sm font-bold text-accent-bordeaux transition-colors hover:bg-accent-bordeaux/10"
                   >
                     <span className="icon-[mdi--trash-can-outline] text-base" />
-                    Retirer du panier
+                    {texts.removeFromCart}
                   </button>
                 )}
               </div>
@@ -637,7 +655,7 @@ export function ProductSheet({
                   type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   disabled={quantity <= 1}
-                  aria-label="Diminuer la quantité"
+                  aria-label={texts.decrease}
                   className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-background disabled:opacity-30"
                 >
                   <span className="icon-[mdi--minus] text-lg" />
@@ -648,7 +666,7 @@ export function ProductSheet({
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => q + 1)}
-                  aria-label="Augmenter la quantité"
+                  aria-label={texts.increase}
                   className="flex h-10 w-10 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-background"
                 >
                   <span className="icon-[mdi--plus] text-lg" />
@@ -662,10 +680,10 @@ export function ProductSheet({
                 className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 font-bold text-on-primary transition-all hover:bg-accent-slate active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
               >
                 {missingChoice ? (
-                  "Choisissez d'abord vos options"
+                  texts.chooseFirst
                 ) : (
                   <>
-                    {isEditing ? "Mettre à jour" : "Ajouter"}
+                    {isEditing ? texts.update : texts.add}
                     {/* key sur le montant : React remonte l'élément à chaque
                         changement de prix, ce qui rejoue l'animation. C'est le
                         seul retour visuel qui confirme qu'ajouter une formule
@@ -675,7 +693,7 @@ export function ProductSheet({
                       key={unitPrice * quantity}
                       className="tabular-nums motion-safe:animate-[toastIn_0.2s_ease-out]"
                     >
-                      · {formatDA(unitPrice * quantity)}
+                      · {formatDA(unitPrice * quantity, locale)}
                     </span>
                   </>
                 )}

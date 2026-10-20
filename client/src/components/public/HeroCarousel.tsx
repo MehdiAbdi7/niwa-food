@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Image from "next/image";
 import { useIsPageIdle } from "@/features/motion/useIsPageIdle";
 import { useReducedMotion } from "@/features/motion/useReducedMotion";
+import { useI18n } from "@/i18n/I18nProvider";
 import { TerrazzoChip } from "./TerrazzoChip";
 
 const AUTOPLAY_INTERVAL_MS = 6000;
@@ -158,6 +159,7 @@ interface HeroCarouselProps {
  * tourner le cercle d'un tour presque complet en arrière.
  */
 export function HeroCarousel({ slides }: HeroCarouselProps) {
+  const { dict } = useI18n();
   const [turn, setTurn] = useState(0);
   const stepDeg = 360 / slides.length;
   // Modulo positif : en JavaScript, -1 % 5 vaut -1, pas 4.
@@ -271,8 +273,8 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   return (
     <div
       role="group"
-      aria-roledescription="carrousel"
-      aria-label="Quelques plats de la carte"
+      aria-roledescription={dict.hero.carouselRole}
+      aria-label={dict.hero.carouselLabel}
       // Survol à la souris ou focus clavier dans le carrousel : on regarde,
       // les plats attendent.
       onPointerEnter={(event) => {
@@ -368,17 +370,20 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
           Dès md, les flèches passent de chaque côté du cercle, à mi-hauteur
           de la scène (hauteur totale moins la rangée de légende, 2,75rem) :
           sous le cercle, elles tombaient sous la ligne de flottaison d'un
-          écran 1080p. La légende, elle, reste dessous. */}
+          écran 1080p. La légende, elle, reste dessous.
+          start-0 / end-0 et non left-0 / right-0 : en arabe, « précédent »
+          passe à droite, côté début de lecture, et ses chevrons se
+          retournent. */}
       <div className="flex w-full items-center justify-between gap-3">
         <button
           type="button"
           onClick={goToPrev}
-          aria-label="Plat précédent"
-          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-primary bg-linear-to-t from-primary/50 via-transparent to-transparent text-foreground transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:left-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
+          aria-label={dict.hero.previous}
+          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-primary bg-linear-to-t from-primary/50 via-transparent to-transparent text-foreground transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:start-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
         >
           <span
             aria-hidden="true"
-            className="icon-[mdi--chevron-left] text-2xl"
+            className="icon-[mdi--chevron-left] text-2xl rtl:-scale-x-100"
           />
         </button>
         {/* Légende posée dans le bas du cercle. */}
@@ -398,12 +403,12 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
         <button
           type="button"
           onClick={goToNext}
-          aria-label="Plat suivant"
-          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-primary bg-linear-to-t from-primary/50 via-transparent to-transparent text-foreground transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:right-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
+          aria-label={dict.hero.next}
+          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-primary bg-linear-to-t from-primary/50 via-transparent to-transparent text-foreground transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:end-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
         >
           <span
             aria-hidden="true"
-            className="icon-[mdi--chevron-right] text-2xl"
+            className="icon-[mdi--chevron-right] text-2xl rtl:-scale-x-100"
           />
         </button>
       </div>

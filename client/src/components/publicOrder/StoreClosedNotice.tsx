@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useStoreStatuses } from "@/features/storeSettings/useStoreStatuses";
-import { STORE_LABELS } from "@/types/store";
+import { useI18n } from "@/i18n/I18nProvider";
+import { localizePath } from "@/i18n/config";
+import { pluralize } from "@/i18n/text";
 
 /**
  * Prévient le client qu'un restaurant ne prend plus de commandes.
@@ -14,9 +16,14 @@ import { STORE_LABELS } from "@/types/store";
  *
  * Ne rend rien tant que tout est ouvert : pas de bandeau permanent qui
  * apprendrait au client à ignorer cette zone de l'écran.
+ *
+ * Le message de fermeture saisi par le restaurant (closedMessage) reste
+ * dans la langue où il a été écrit : seul le message par défaut est traduit.
  */
 export function StoreClosedNotice() {
   const { closed, allClosed } = useStoreStatuses();
+  const { locale, dict } = useI18n();
+  const texts = dict.storeClosed;
 
   if (closed.length === 0) return null;
 
@@ -33,17 +40,16 @@ export function StoreClosedNotice() {
           className="icon-[mdi--store-clock-outline] text-3xl text-accent-bordeaux"
         />
         <p className="font-heading text-base font-bold text-foreground">
-          Commandes en ligne fermées
+          {texts.allTitle}
         </p>
         <p className="max-w-md text-sm text-foreground/70">
-          {closed[0]?.closedMessage ??
-            "Nos restaurants ne prennent plus de commandes en ligne pour le moment. Vous pouvez consulter la carte, et nous appeler si besoin."}
+          {closed[0]?.closedMessage ?? texts.allText}
         </p>
         <Link
-          href="/#contact"
+          href={localizePath(locale, "/#contact")}
           className="mt-1 text-sm font-bold text-accent-bordeaux underline"
         >
-          Voir nos numéros
+          {dict.common.seeNumbers}
         </Link>
       </div>
     );
@@ -62,13 +68,14 @@ export function StoreClosedNotice() {
       />
       <div className="flex min-w-0 flex-col gap-0.5">
         <p className="font-heading text-sm font-bold text-foreground">
-          {closed.map((status) => STORE_LABELS[status.store]).join(" et ")} ne
-          prend
-          {closed.length > 1 ? "nent" : ""} plus de commandes
+          {pluralize(locale, texts.partialTitle, closed.length, {
+            stores: closed
+              .map((status) => dict.stores[status.store].name)
+              .join(texts.and),
+          })}
         </p>
         <p className="text-sm text-foreground/75">
-          {closed[0]?.closedMessage ??
-            "Vous pouvez commander sur notre autre adresse."}
+          {closed[0]?.closedMessage ?? texts.partialText}
         </p>
       </div>
     </div>

@@ -62,7 +62,8 @@ Ces quatre espaces sont le miroir exact du cloisonnement de l'API : le front mas
 
 ### 📊 Dashboard staff
 
-- **Kanban commandes** — _Nouvelles / Prêtes / En livraison_, minuteur coloré par ancienneté, alerte sonore, transitions en un clic.
+- **Kanban commandes** — _Nouvelles / Prêtes / En livraison_, minuteur coloré par ancienneté, transitions en un clic.
+- **Alerte nouvelle commande** — cloche sur toutes les pages du dashboard et pour tous les magasins de l'utilisateur, rappel toutes les 30 s jusqu'au « Vu » (ou fiche ouverte), pastille du nombre de commandes « Nouvelles » dans la navigation.
 - **Prise de commande** — parcours menu complet, ticket sticky (desktop) ou drawer (mobile).
 - **Tables** — occupation par magasin, libération manuelle, CRUD admin.
 - **Menu** — CRUD produits, variantes, groupes d'extras (`ExtraGroupsEditor`), upload Cloudinary.

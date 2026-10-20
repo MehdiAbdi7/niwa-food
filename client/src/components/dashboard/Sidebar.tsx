@@ -4,11 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/features/auth/useAuth";
+import { usePendingOrders } from "@/features/orders/usePendingOrders";
 import { NAV_ITEMS } from "./navConfig";
+import { PendingOrdersBadge } from "./PendingOrdersBadge";
 
 export function Sidebar() {
   const pathname = usePathname();
   const { isAdmin } = useAuth();
+  const { count: pendingCount } = usePendingOrders();
 
   const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
@@ -32,6 +35,7 @@ export function Sidebar() {
         {visibleItems.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const badgeCount = item.href === "/commandes" ? pendingCount : 0;
 
           return (
             <Link
@@ -47,7 +51,10 @@ export function Sidebar() {
                 className={`${item.icon} text-lg transition-transform group-hover:scale-105`}
               />
               {item.label}
-              {isActive && (
+              <PendingOrdersBadge count={badgeCount} className="ml-auto" />
+              {/* Le point et la pastille occuperaient la même place à droite :
+                  le fond coloré suffit alors à signaler la page active. */}
+              {isActive && badgeCount === 0 && (
                 <span className="absolute right-3 h-1.5 w-1.5 rounded-full bg-primary" />
               )}
             </Link>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +18,8 @@ import {
 } from "@/features/orders/orderApi";
 import { useAuth } from "@/features/auth/useAuth";
 import { useToast } from "@/features/toast/useToast";
+import { ordersAcknowledged } from "@/features/orders/orderAlertSlice";
+import { useAppDispatch } from "@/lib/hooks";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { getPrimaryAction, canCancel } from "@/lib/orderTransitions";
 import { formatDA, formatDateTime } from "@/lib/format";
@@ -33,8 +35,15 @@ interface OrderDetailModalProps {
 
 export function OrderDetailModal({ orderId, onClose }: OrderDetailModalProps) {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { isAdmin } = useAuth();
   const toast = useToast();
+
+  // Ouvrir la fiche vaut « Vu » : la cloche de NewOrderAlert s'arrête pour
+  // cette commande, sans avoir à chercher le bouton du bandeau.
+  useEffect(() => {
+    if (orderId) dispatch(ordersAcknowledged([orderId]));
+  }, [orderId, dispatch]);
 
   const {
     data: order,

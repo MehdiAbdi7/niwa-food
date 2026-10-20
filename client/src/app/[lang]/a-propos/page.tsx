@@ -20,7 +20,7 @@ export async function generateMetadata(
   const { aboutPage } = getDictionary(lang);
 
   // Un openGraph défini ici REMPLACE celui du layout, image d'aperçu
-  // comprise. On reprend donc l'image du layout (app/[lang]/opengraph-image.jpg).
+  // comprise. On reprend donc l'image déclarée par le layout (og-image.jpg).
   const parentImages = (await parent).openGraph?.images ?? [];
 
   return {

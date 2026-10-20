@@ -32,6 +32,18 @@ export async function generateMetadata({
   const locale = hasLocale(lang) ? lang : DEFAULT_LOCALE;
   const dict = getDictionary(locale);
 
+  // Image d'aperçu des partages (WhatsApp, Facebook...). Un simple fichier de
+  // public/, déclaré ici, et non un opengraph-image.jpg posé dans app/[lang] :
+  // Next en fait alors une route dynamique (/[lang]/opengraph-image.jpg) que
+  // le build de Vercel ne sait pas empaqueter (« failed to find source
+  // route »). Le texte alternatif, lui, suit la langue.
+  const shareImage = {
+    url: "/og-image.jpg",
+    width: 1200,
+    height: 630,
+    alt: dict.meta.ogImageAlt,
+  };
+
   return {
     ...sharedMetadata,
     title: dict.meta.title,
@@ -43,7 +55,9 @@ export async function generateMetadata({
       siteName: "Niwa Food",
       locale: dict.meta.ogLocale,
       type: "website",
+      images: [shareImage],
     },
+    twitter: { card: "summary_large_image", images: [shareImage] },
   };
 }
 

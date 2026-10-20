@@ -11,6 +11,7 @@ export const en: Dictionary = {
     description:
       "Homemade fast food in Algiers: burgers, tacos and pizzas made to order. Dine in, take away or delivered in Kouba and Chéraga.",
     ogLocale: "en_US",
+    ogImageAlt: "Niwa Food, homemade burgers, tacos and pizzas in Kouba and Chéraga",
   },
 
   common: {

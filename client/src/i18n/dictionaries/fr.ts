@@ -21,6 +21,10 @@ export const fr = {
       "Fast-food fait maison à Alger : burgers, tacos et pizzas préparés minute. Sur place, à emporter ou en livraison à Kouba et Chéraga.",
     // Format des réseaux sociaux (Open Graph) : langue_PAYS.
     ogLocale: "fr_DZ",
+    // Texte de l'image d'aperçu (public/og-image.jpg), lu par les lecteurs
+    // d'écran des réseaux sociaux.
+    ogImageAlt:
+      "Niwa Food, burgers, tacos et pizzas faits maison à Kouba et Chéraga",
   },
 
   common: {

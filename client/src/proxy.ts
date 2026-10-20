@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { DEFAULT_LOCALE, hasLocale, stripLocale } from "@/i18n/config";
 
 const AUTH_COOKIE_NAME = "niwa_token";
 
@@ -20,12 +21,59 @@ const PROTECTED_PREFIXES = [
   "/livraison",
 ];
 
+function isStaffPath(pathname: string): boolean {
+  return [...PROTECTED_PREFIXES, "/login"].some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 /**
  * Premier filtre, exécuté avant tout rendu.
  *
  * Anciennement middleware.ts : Next 16 a renommé la convention en proxy. Le
  * nom de l'export doit suivre — une fonction encore appelée `middleware` dans
  * un fichier `proxy.ts` n'est pas reconnue.
+ *
+ * Deux aiguillages : le back-office (connexion obligatoire, toujours en
+ * français) et le site public (langue lue dans l'adresse).
+ */
+export function proxy(request: NextRequest) {
+  if (isStaffPath(request.nextUrl.pathname)) return staffProxy(request);
+  return localeProxy(request);
+}
+
+/**
+ * Langue du site public.
+ *
+ * Toutes les pages publiques vivent dans app/[lang]. Le français n'a pas de
+ * préfixe dans l'adresse, donc ses pages y sont envoyées par une RÉÉCRITURE :
+ * le navigateur affiche /commande, Next rend /fr/commande. Une redirection
+ * ajouterait un aller-retour réseau à chaque visite.
+ */
+function localeProxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const [, firstSegment] = pathname.split("/");
+
+  // /fr/contact → /contact : une seule adresse par page française. Deux
+  // adresses pour le même contenu, Google y voit un doublon.
+  if (firstSegment === DEFAULT_LOCALE) {
+    const url = request.nextUrl.clone();
+    url.pathname = stripLocale(pathname);
+    return NextResponse.redirect(url, 308);
+  }
+
+  // /ar/... et /en/... existent tels quels dans app/[lang].
+  if (hasLocale(firstSegment)) return NextResponse.next();
+
+  // Le reste est en français. La requête garde ses paramètres (?store=...
+  // des QR codes), seul le chemin change.
+  const url = request.nextUrl.clone();
+  url.pathname = `/${DEFAULT_LOCALE}${pathname === "/" ? "" : pathname}`;
+  return NextResponse.rewrite(url);
+}
+
+/**
+ * Accès au back-office.
  *
  * Il ne vérifie QUE la présence du cookie, jamais la signature du JWT : ce
  * code tourne sur le runtime Edge, où jsonwebtoken n'est pas disponible. Ce
@@ -36,7 +84,7 @@ const PROTECTED_PREFIXES = [
  * Il ne connaît pas non plus le RÔLE, pour la même raison : c'est aux layouts
  * (dashboard) et (livraison) d'aiguiller chacun vers son espace.
  */
-export function proxy(request: NextRequest) {
+function staffProxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = request.cookies.has(AUTH_COOKIE_NAME);
 
@@ -66,8 +114,11 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // Exclut les assets et les routes internes : les faire passer par ce filtre
-  // coûterait un appel par image chargée.
+  // coûterait un appel par image chargée. Depuis les langues, c'est aussi
+  // une question de justesse : robots.txt, sitemap.xml ou les fichiers de
+  // Next (_next, __nextjs en développement) seraient sinon réécrits en
+  // /fr/robots.txt, qui n'existe pas.
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|webp|mp4|ico)$).*)",
+    "/((?!api|_next|__next|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|webp|mp4|ico|txt|xml)$).*)",
   ],
 };

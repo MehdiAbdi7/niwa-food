@@ -17,7 +17,7 @@ interface PageHeroProps {
  */
 export function PageHero({ eyebrow, title, lead }: PageHeroProps) {
   return (
-    <header className="flex flex-col gap-3 text-center sm:text-left">
+    <header className="flex flex-col gap-3 text-center sm:text-start">
       <span className="font-heading text-sm font-bold uppercase tracking-wide text-accent-green">
         {eyebrow}
       </span>
@@ -34,7 +34,7 @@ export function PageHero({ eyebrow, title, lead }: PageHeroProps) {
 
       <span
         aria-hidden="true"
-        className="mx-auto mt-2 h-1 w-24 rounded-full bg-linear-to-r from-primary to-transparent sm:mx-0"
+        className="mx-auto mt-2 h-1 w-24 rounded-full bg-linear-to-r from-primary to-transparent sm:mx-0 rtl:bg-linear-to-l"
       />
     </header>
   );

@@ -1,4 +1,5 @@
 import type { Store } from "@/types/store";
+import type { Locale } from "@/i18n/config";
 
 /**
  * Coordonnées réelles de Niwa Food.
@@ -7,6 +8,10 @@ import type { Store } from "@/types/store";
  * Footer.tsx. Un numéro qui change se corrigeait donc à un endroit sur deux,
  * et le site finissait par afficher deux vérités. Tout ce qui affiche une
  * adresse, un horaire ou un réseau lit désormais ce fichier.
+ *
+ * Ce qui se traduit (nom de la ville, adresse, jours) est dans les
+ * dictionnaires, sous dict.stores et dict.hours. Les valeurs françaises
+ * gardées ici servent aux données structurées pour Google.
  */
 
 export interface StoreLocation {
@@ -65,14 +70,28 @@ export const STORE_LOCATIONS: StoreLocation[] = [
  * auquel personne ne répond.
  */
 export const OPENING_HOURS = [
-  { days: "Samedi à jeudi", hours: "11h00 – 00h30" },
-  { days: "Vendredi", hours: "18h00 – 00h30" },
-];
+  { days: "saturdayToThursday", opens: "11:00", closes: "00:30" },
+  { days: "friday", opens: "18:00", closes: "00:30" },
+] as const;
 
+export type OpeningHoursSlot = (typeof OPENING_HOURS)[number];
+
+/**
+ * Plage horaire telle qu'on l'écrit dans chaque langue : « 11h00 – 00h30 »
+ * en français, « 11:00 – 00:30 » ailleurs. Le libellé des jours, lui, vient
+ * du dictionnaire : dict.hours[slot.days].
+ */
+export function formatHourRange(slot: OpeningHoursSlot, locale: Locale): string {
+  const time = (value: string) =>
+    locale === "fr" ? value.replace(":", "h") : value;
+  return `${time(slot.opens)} – ${time(slot.closes)}`;
+}
+
+// Le libellé lu par les lecteurs d'écran (« Niwa Food sur Instagram ») est
+// construit avec dict.socialLabel et le `name` ci-dessous.
 export const SOCIALS = [
   {
     href: "https://www.instagram.com/niwafood/",
-    label: "Niwa Food sur Instagram",
     name: "Instagram",
     icon: "icon-[line-md--instagram]",
     bg: "bg-rose-500/20",
@@ -81,7 +100,6 @@ export const SOCIALS = [
   },
   {
     href: "https://www.facebook.com/niwafood",
-    label: "Niwa Food sur Facebook",
     name: "Facebook",
     icon: "icon-[mdi--facebook]",
     bg: "bg-blue-700/30",
@@ -90,7 +108,6 @@ export const SOCIALS = [
   },
   {
     href: "https://www.tiktok.com/@niwafood",
-    label: "Niwa Food sur Tiktok",
     name: "TikTok",
     icon: "icon-[line-md--tiktok]",
     bg: "bg-black/80",
@@ -108,4 +125,4 @@ export const SOCIALS = [
  * dispose un fast-food de quartier face à une chaîne. À rafraîchir de temps en
  * temps : un compteur qui stagne pendant deux ans se retourne contre vous.
  */
-export const INSTAGRAM_FOLLOWERS = "29 000";
+export const INSTAGRAM_FOLLOWERS = 29_000;

@@ -6,10 +6,27 @@ import { getApiErrorMessage } from "@/lib/apiError";
 import { normalizePromoCode, type PromoValidation } from "@/types/promoCode";
 import type { OrderType } from "@/types/order";
 
+interface PromoMessages {
+  empty: string;
+  invalid: string;
+  noLongerApplies: string;
+}
+
+// Le hook sert aussi au back-office (prise de commande au comptoir), qui n'a
+// pas de dictionnaire : le site public passe ses textes, le dashboard garde
+// ceux-ci.
+const DEFAULT_MESSAGES: PromoMessages = {
+  empty: "Entrez votre code promo",
+  invalid: "Ce code promo n'est pas valide",
+  noLongerApplies: "Votre code promo ne s'applique plus à cette commande",
+};
+
 interface UsePromoCodeArgs {
   /** Total des articles, hors livraison. Le backend valide sur le sien. */
   itemsTotal: number;
   orderType: OrderType;
+  /** Messages d'erreur affichés quand l'API n'en fournit pas. */
+  messages?: PromoMessages;
 }
 
 export interface UsePromoCodeResult {
@@ -46,8 +63,13 @@ export interface UsePromoCodeResult {
 export function usePromoCode({
   itemsTotal,
   orderType,
+  messages = DEFAULT_MESSAGES,
 }: UsePromoCodeArgs): UsePromoCodeResult {
   const [validate] = useLazyValidatePromoCodeQuery();
+  // Des chaînes et non l'objet : en dépendance des effets ci-dessous, une
+  // chaîne ne change que si son texte change, alors qu'un objet recréé à
+  // chaque rendu relancerait la revalidation en boucle.
+  const { empty, invalid, noLongerApplies } = messages;
 
   const [input, setInput] = useState("");
   const [applied, setApplied] = useState<PromoValidation | null>(null);
@@ -68,7 +90,7 @@ export function usePromoCode({
     const code = normalizePromoCode(input);
 
     if (code.length < 2) {
-      setError("Entrez votre code promo");
+      setError(empty);
       return;
     }
 
@@ -94,11 +116,11 @@ export function usePromoCode({
       // Le backend distingue déjà ce qui est actionnable (« à partir de
       // 2 000 DA ») de ce qui ne l'est pas (« code non valide ») : on affiche
       // son message tel quel plutôt que d'en inventer un second.
-      setError(getApiErrorMessage(err, "Ce code promo n'est pas valide"));
+      setError(getApiErrorMessage(err, invalid));
     } finally {
       if (requestId === requestIdRef.current) setIsChecking(false);
     }
-  }, [input, itemsTotal, orderType, validate]);
+  }, [input, itemsTotal, orderType, validate, empty, invalid]);
 
   const clear = useCallback(() => {
     // Invalide toute vérification en vol : sans ça, une réponse en retard
@@ -133,18 +155,13 @@ export function usePromoCode({
       .catch((err) => {
         if (cancelled) return;
         setApplied(null);
-        setError(
-          getApiErrorMessage(
-            err,
-            "Votre code promo ne s'applique plus à cette commande",
-          ),
-        );
+        setError(getApiErrorMessage(err, noLongerApplies));
       });
 
     return () => {
       cancelled = true;
     };
-  }, [appliedCode, itemsTotal, orderType, validate]);
+  }, [appliedCode, itemsTotal, orderType, validate, noLongerApplies]);
 
   return {
     input,

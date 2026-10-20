@@ -18,17 +18,14 @@ import { writeLastOrder } from "@/lib/lastOrder";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { formatDA } from "@/lib/format";
 import { DEMO_MODE } from "@/config/site";
-import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS } from "@/lib/orderLabels";
-import { STORES, STORE_LABELS, type Store } from "@/types/store";
+import { ORDER_TYPE_ICONS } from "@/lib/orderLabels";
+import { STORES, type Store } from "@/types/store";
 import type { CreateOrderPayload, OrderType } from "@/types/order";
+import { useI18n } from "@/i18n/I18nProvider";
+import { localizePath } from "@/i18n/config";
+import { fill } from "@/i18n/text";
 
 const TYPE_OPTIONS: OrderType[] = ["dine_in", "takeaway", "delivery"];
-
-const TYPE_HINTS: Record<OrderType, string> = {
-  dine_in: "Vous êtes installé en salle, on vous apporte votre commande.",
-  takeaway: "Vous passez la récupérer au comptoir.",
-  delivery: "On vous livre. Les frais seront calculés selon votre adresse.",
-};
 
 interface CheckoutFormProps {
   /** IDs des produits encore commandables, résolus côté serveur. */
@@ -49,6 +46,8 @@ function Label({
   children: React.ReactNode;
   optional?: boolean;
 }) {
+  const { dict } = useI18n();
+
   return (
     <label
       htmlFor={htmlFor}
@@ -57,7 +56,7 @@ function Label({
       {children}
       {optional && (
         <span className="text-xs font-semibold text-foreground/40">
-          facultatif
+          {dict.common.optional}
         </span>
       )}
     </label>
@@ -83,6 +82,8 @@ function LoadingScreen() {
 
 export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
   const router = useRouter();
+  const { locale, dict } = useI18n();
+  const texts = dict.checkout;
   const { store: contextStore, tableId: contextTable } = useOrderContext();
 
   const { lines, total, count, isHydrated, reconcile, clear } = useCart();
@@ -136,7 +137,11 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
    * bascule sur « à emporter », et qu'un code à partir de 2 000 DA saute s'il
    * retire un article. Sans ça, le refus n'arriverait qu'à l'envoi.
    */
-  const promo = usePromoCode({ itemsTotal: total, orderType: type });
+  const promo = usePromoCode({
+    itemsTotal: total,
+    orderType: type,
+    messages: dict.promo.errors,
+  });
 
   const discountAmount = promo.discountAmount;
   const payableTotal = Math.max(0, total - discountAmount);
@@ -165,8 +170,8 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
   // renverrait systématiquement à la carte au premier rendu.
   useEffect(() => {
     if (!isHydrated || hasSubmitted.current) return;
-    if (lines.length === 0) router.replace("/commande");
-  }, [isHydrated, lines.length, router]);
+    if (lines.length === 0) router.replace(localizePath(locale, "/commande"));
+  }, [isHydrated, lines.length, router, locale]);
 
   // Le magasin choisi ne prend plus de commandes. Le backend renverrait un 503
   // de toute façon (c'est lui qui fait foi), mais le client doit le voir avant
@@ -182,17 +187,17 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
   }
 
   function validate(): string | null {
-    if (!store) return "Choisissez d'abord un restaurant";
+    if (!store) return texts.errors.store;
     // En premier après le magasin : inutile de reprocher un téléphone manquant
     // à quelqu'un dont la commande sera refusée quoi qu'il arrive.
     if (!isAccepting(store)) return getClosedMessage(store);
-    if (!fullName.trim()) return "Votre nom est requis";
-    if (type === "dine_in" && !tableId) return "Choisissez votre table";
+    if (!fullName.trim()) return texts.errors.name;
+    if (type === "dine_in" && !tableId) return texts.errors.table;
     if (type !== "dine_in" && phone.trim().length < 10) {
-      return "Un numéro de téléphone est requis (10 chiffres minimum)";
+      return texts.errors.phone;
     }
     if (type === "delivery" && !address.trim()) {
-      return "L'adresse de livraison est requise";
+      return texts.errors.address;
     }
     return null;
   }
@@ -262,7 +267,7 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
       writeLastOrder(created._id, created.dailyNumber);
       clear();
 
-      router.replace(`/commande/suivi/${created._id}`);
+      router.replace(localizePath(locale, `/commande/suivi/${created._id}`));
     } catch (err) {
       // Couvre aussi le 503 d'un magasin fermé entre l'affichage et l'envoi :
       // errorResponse renvoie { error }, donc le message du restaurant remonte
@@ -273,12 +278,7 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
       // automatiquement — deviner à quoi se rapporte une erreur à partir de son
       // texte est fragile. Le client garde la main via le × du champ, et
       // l'indication ci-dessous le lui rappelle.
-      setError(
-        getApiErrorMessage(
-          err,
-          "Impossible d'envoyer la commande. Réessayez dans un instant.",
-        ),
-      );
+      setError(getApiErrorMessage(err, texts.errors.send));
     }
   }
 
@@ -300,19 +300,23 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
     <div className="relative z-10 mx-auto w-full max-w-2xl px-4 pb-16 pt-28">
       <header className="mb-6 flex items-center gap-3">
         <Link
-          href="/commande"
-          aria-label="Retour à la carte"
+          href={localizePath(locale, "/commande")}
+          aria-label={dict.common.backToMenu}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-background/60 text-foreground/75 backdrop-blur-sm transition-colors hover:border-primary hover:text-foreground"
         >
-          <span aria-hidden="true" className="icon-[mdi--arrow-left] text-xl" />
+          {/* Le retour pointe vers le début de la lecture : à droite en arabe. */}
+          <span
+            aria-hidden="true"
+            className="icon-[mdi--arrow-left] text-xl rtl:-scale-x-100"
+          />
         </Link>
 
         <div>
           <span className="font-heading text-xs font-bold uppercase tracking-wide text-accent-green">
-            Dernière étape
+            {texts.lastStep}
           </span>
           <h1 className="font-heading text-2xl font-bold leading-tight text-foreground">
-            Finaliser ma commande
+            {texts.title}
           </h1>
         </div>
       </header>
@@ -351,17 +355,14 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
                 aria-hidden="true"
                 className="icon-[mdi--store-clock-outline] text-lg text-accent-bordeaux"
               />
-              Commandes en ligne fermées
+              {texts.closedTitle}
             </p>
-            <p className="text-sm text-foreground/70">
-              Votre panier est conservé : vous pourrez l&apos;envoyer dès la
-              réouverture.
-            </p>
+            <p className="text-sm text-foreground/70">{texts.closedText}</p>
             <Link
-              href="/#contact"
+              href={localizePath(locale, "/#contact")}
               className="text-sm font-bold text-accent-bordeaux underline"
             >
-              Voir nos numéros
+              {dict.common.seeNumbers}
             </Link>
           </div>
         )}
@@ -372,7 +373,7 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
             explicite côté backend. */}
         <section className="flex flex-col gap-2.5">
           <h2 className="font-heading text-sm font-bold uppercase tracking-wide text-foreground/70">
-            Quel restaurant ?
+            {dict.common.whichStore}
           </h2>
 
           <div className="grid grid-cols-2 gap-2">
@@ -406,11 +407,11 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
                           : "icon-[mdi--map-marker]"
                       }`}
                     />
-                    {STORE_LABELS[option]}
+                    {dict.stores[option].name}
                   </span>
                   {isClosed && (
                     <span className="text-xs font-semibold uppercase tracking-wide text-accent-bordeaux/70">
-                      Fermé
+                      {dict.common.closed}
                     </span>
                   )}
                 </button>
@@ -423,7 +424,7 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
               qu'aucun des deux boutons ci-dessus ne paraisse sélectionné. */}
           {isSelectedStoreClosed && !allClosed && (
             <p className="rounded-xl bg-accent-bordeaux/10 px-4 py-3 text-sm text-accent-bordeaux backdrop-blur-sm">
-              {getClosedMessage(store)} Choisissez notre autre adresse.
+              {getClosedMessage(store)} {texts.chooseOtherStore}
             </p>
           )}
         </section>
@@ -431,7 +432,7 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
         {/* ---------- Mode ---------- */}
         <section className="flex flex-col gap-2.5">
           <h2 className="font-heading text-sm font-bold uppercase tracking-wide text-foreground/70">
-            Comment souhaitez-vous être servi ?
+            {texts.serviceTitle}
           </h2>
 
           <div className="grid grid-cols-3 gap-2">
@@ -451,52 +452,49 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
                   aria-hidden="true"
                   className={`${ORDER_TYPE_ICONS[option]} text-2xl`}
                 />
-                {ORDER_TYPE_LABELS[option]}
+                {dict.orderTypes[option]}
               </button>
             ))}
           </div>
 
-          <p className="text-xs text-foreground/75">{TYPE_HINTS[type]}</p>
+          <p className="text-xs text-foreground/75">{texts.hints[type]}</p>
         </section>
 
         {/* ---------- Coordonnées ---------- */}
         <section className="flex flex-col gap-4">
           <h2 className="font-heading text-sm font-bold uppercase tracking-wide text-foreground/70">
-            Vos informations
+            {texts.infoTitle}
           </h2>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fullName">Votre nom</Label>
+            <Label htmlFor="fullName">{texts.name}</Label>
             <input
               id="fullName"
               type="text"
               autoComplete="name"
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
-              placeholder="Ex : Yacine"
+              placeholder={texts.namePlaceholder}
               className={FIELD_CLASSES}
             />
-            <p className="text-xs text-foreground/45">
-              C&apos;est le nom qui sera appelé pour votre commande.
-            </p>
+            <p className="text-xs text-foreground/45">{texts.nameHint}</p>
           </div>
 
           {type === "dine_in" && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="table">Votre table</Label>
+              <Label htmlFor="table">{texts.table}</Label>
 
               {!store ? (
                 <p className="rounded-xl bg-background/70 px-4 py-3 text-sm text-foreground/75 backdrop-blur-sm">
-                  Choisissez d&apos;abord un restaurant.
+                  {texts.chooseStoreFirst}
                 </p>
               ) : isLoadingTables ? (
                 <p className="rounded-xl bg-background/70 px-4 py-3 text-sm text-foreground/75 backdrop-blur-sm">
-                  Chargement des tables…
+                  {texts.loadingTables}
                 </p>
               ) : !tables || tables.length === 0 ? (
                 <p className="rounded-xl bg-accent-bordeaux/10 px-4 py-3 text-sm text-accent-bordeaux backdrop-blur-sm">
-                  Aucune table disponible ici. Choisissez « à emporter », ou
-                  demandez à un membre de l&apos;équipe.
+                  {texts.noTables}
                 </p>
               ) : (
                 <>
@@ -507,14 +505,14 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
                     className={`${FIELD_CLASSES} appearance-none`}
                   >
                     <option value="" disabled>
-                      Choisir une table
+                      {texts.chooseTable}
                     </option>
                     {[...tables]
                       .sort((a, b) => a.tableN - b.tableN)
                       .map((table) => (
                         <option key={table._id} value={table._id}>
-                          Table {table.tableN}
-                          {table.status === "occupied" ? " — occupée" : ""}
+                          {fill(texts.tableOption, { number: table.tableN })}
+                          {table.status === "occupied" ? texts.occupied : ""}
                         </option>
                       ))}
                   </select>
@@ -534,10 +532,8 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
                           className="icon-[mdi--information-outline] mt-0.5 shrink-0 text-sm text-accent-mustard"
                         />
                         <span>
-                          Une commande est déjà en cours sur cette table : vos
-                          articles y seront ajoutés.
-                          {promo.applied &&
-                            " Un code promo ne peut pas être ajouté à une commande déjà ouverte."}
+                          {texts.tableBusy}
+                          {promo.applied && texts.promoOnBusyTable}
                         </span>
                       </p>
                     )}
@@ -548,32 +544,33 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
 
           {type !== "dine_in" && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="phone">Téléphone</Label>
+              <Label htmlFor="phone">{texts.phone}</Label>
+              {/* dir="ltr" : un numéro se tape de gauche à droite, même
+                  sur une page en arabe. */}
               <input
                 id="phone"
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
+                dir="ltr"
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
                 placeholder="05 00 00 00 00"
-                className={FIELD_CLASSES}
+                className={`${FIELD_CLASSES} rtl:text-right`}
               />
-              <p className="text-xs text-foreground/45">
-                Pour vous joindre si besoin.
-              </p>
+              <p className="text-xs text-foreground/45">{texts.phoneHint}</p>
             </div>
           )}
 
           {type === "delivery" && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="address">Adresse de livraison</Label>
+              <Label htmlFor="address">{texts.address}</Label>
               <textarea
                 id="address"
                 rows={2}
                 value={address}
                 onChange={(event) => setAddress(event.target.value)}
-                placeholder="Rue, immeuble, étage, repère…"
+                placeholder={texts.addressPlaceholder}
                 className="w-full rounded-xl border border-primary/25 bg-background/85 px-4 py-3 text-foreground outline-none transition-colors placeholder:text-foreground/40 focus:border-primary"
               />
             </div>
@@ -581,14 +578,14 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="remark" optional>
-              Une précision ?
+              {texts.remark}
             </Label>
             <input
               id="remark"
               type="text"
               value={remark}
               onChange={(event) => setRemark(event.target.value)}
-              placeholder="Bien cuit, sonner deux fois…"
+              placeholder={texts.remarkPlaceholder}
               className={FIELD_CLASSES}
             />
           </div>
@@ -601,10 +598,8 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
               className="icon-[mdi--moped-outline] mt-0.5 shrink-0 text-base text-primary"
             />
             <span>
-              Les frais de livraison dépendent de votre adresse : ils seront
-              ajoutés par l&apos;équipe et visibles sur votre suivi.
-              {discountAmount > 0 &&
-                " Votre remise porte sur les articles, pas sur la livraison."}
+              {texts.deliveryFees}
+              {discountAmount > 0 && texts.discountNotOnDelivery}
             </span>
           </p>
         )}
@@ -623,10 +618,7 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
                 {error}
               </p>
               {promo.applied && (
-                <p className="text-xs text-foreground/75">
-                  Si le blocage vient de votre code promo, retirez-le
-                  ci-dessus : votre commande partira au tarif normal.
-                </p>
+                <p className="text-xs text-foreground/75">{texts.promoHint}</p>
               )}
             </div>
           )}
@@ -645,17 +637,19 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
                   aria-hidden="true"
                   className="icon-[mdi--loading] animate-spin text-xl"
                 />
-                Envoi en cours…
+                {texts.sending}
               </>
             ) : isSelectedStoreClosed || allClosed ? (
-              "Commandes momentanément fermées"
+              texts.closedButton
             ) : (
               <>
-                Envoyer ma commande
+                {texts.send}
                 {/* Le montant affiché est celui APRÈS remise : c'est ce que le
                     client va payer, et c'est le seul chiffre qui l'intéresse
                     au moment d'appuyer. */}
-                <span className="tabular-nums">· {formatDA(payableTotal)}</span>
+                <span className="tabular-nums">
+                  · {formatDA(payableTotal, locale)}
+                </span>
               </>
             )}
           </button>
@@ -665,12 +659,11 @@ export function CheckoutForm({ availableItemIds }: CheckoutFormProps) {
               ne la prépare. Le client doit le lire AVANT d'appuyer. */}
           {DEMO_MODE ? (
             <p className="text-center text-xs font-semibold text-foreground/75">
-              Site de démonstration : votre commande apparaîtra dans le
-              back-office de démo, mais elle ne sera ni préparée ni livrée.
+              {texts.demoNotice}
             </p>
           ) : (
             <p className="text-center text-xs text-foreground/45">
-              En envoyant, votre commande part directement en cuisine.
+              {texts.liveNotice}
             </p>
           )}
         </section>

@@ -1,14 +1,25 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { publicFetch } from "@/lib/publicFetch";
 import { FixedBackground } from "@/components/public/FixedBackground";
 import { CheckoutForm } from "@/components/publicOrder/CheckoutForm";
 import type { MenuItem } from "@/types/menuItem";
+import { hasLocale } from "@/i18n/config";
+import { getDictionary } from "@/i18n/getDictionary";
 
-export const metadata = {
-  title: "Finaliser ma commande — Niwa Food",
-  description:
-    "Renseignez vos informations et envoyez votre commande Niwa Food.",
-};
+interface PageProps {
+  params: Promise<{ lang: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { lang } = await params;
+  if (!hasLocale(lang)) return {};
+  const { checkout } = getDictionary(lang);
+  return { title: checkout.metaTitle, description: checkout.metaDescription };
+}
 
 // Même cache que la carte : cette page ne sert le menu que pour vérifier que
 // le panier ne contient rien de périmé, une minute de fraîcheur suffit.
@@ -27,7 +38,10 @@ export const revalidate = 60;
  * statique. Même contrainte que LoginPage, et la frontière doit être ICI,
  * au-dessus du composant qui suspend.
  */
-export default async function FinaliserPage() {
+export default async function FinaliserPage({ params }: PageProps) {
+  const { lang } = await params;
+  if (!hasLocale(lang)) notFound();
+
   const items = await publicFetch<MenuItem[]>("/menu-items");
 
   const availableItemIds = (items ?? [])

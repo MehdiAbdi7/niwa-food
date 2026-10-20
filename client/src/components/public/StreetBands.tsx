@@ -2,22 +2,8 @@
 
 import { useEffect, useRef, type CSSProperties } from "react";
 import { useReducedMotion } from "@/features/motion/useReducedMotion";
+import { useI18n } from "@/i18n/I18nProvider";
 import { TerrazzoChip } from "./TerrazzoChip";
-
-const MENU_WORDS = [
-  "Burgers",
-  "Tacos gratinés",
-  "Pizzas maison",
-  "Frites maison",
-  "Fait minute",
-];
-const SERVICE_WORDS = [
-  "Kouba",
-  "Chéraga",
-  "Sur place",
-  "À emporter",
-  "En livraison",
-];
 
 // Le défilement accélère avec la vitesse de scroll, puis retombe à son
 // rythme : BOOST_PER_SPEED convertit des px/ms en vitesse supplémentaire,
@@ -30,7 +16,7 @@ function BandWords({ words, chipColor }: { words: string[]; chipColor: string })
   return words.map((word, index) => (
     <span
       key={word}
-      className="flex shrink-0 items-center gap-4 pr-4 sm:gap-6 sm:pr-6"
+      className="flex shrink-0 items-center gap-4 pe-4 sm:gap-6 sm:pe-6"
     >
       {word}
       <span className="block h-5 w-5 sm:h-6 sm:w-6">
@@ -98,6 +84,7 @@ function Band({
 export function StreetBands() {
   const rootRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
+  const { dict } = useI18n();
 
   useEffect(() => {
     const root = rootRef.current;
@@ -173,7 +160,7 @@ export function StreetBands() {
       {/* Couleurs en dur et non jetons du thème : chaque paire a été
           vérifiée pour ce seul usage (4,85:1 en clair, 6,6:1 en sombre). */}
       <Band
-        words={SERVICE_WORDS}
+        words={dict.bands.service}
         chipColor="var(--chip-sand)"
         reverse
         className="top-[36%] -translate-y-1/2 rotate-[4deg]"
@@ -182,7 +169,7 @@ export function StreetBands() {
       {/* Éclats couleur du fond de page : crème sur le bandeau brun en
           clair, presque noir sur le bandeau moutarde en sombre. */}
       <Band
-        words={MENU_WORDS}
+        words={dict.bands.menu}
         chipColor="var(--background)"
         className="top-[58%] -translate-y-1/2 -rotate-[3deg] shadow-[0_10px_30px_-12px_rgb(0_0_0/0.5)]"
         colorClassName="bg-band text-band-ink"

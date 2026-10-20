@@ -14,7 +14,9 @@ function subscribeToSystemTheme(onChange: () => void) {
   return () => mediaQuery.removeEventListener("change", onChange);
 }
 
-function applyThemeClass(mode: ThemeMode) {
+// Exportée pour ThemeScript, qui réapplique le thème quand React reconstruit
+// le document dans le navigateur.
+export function applyThemeClass(mode: ThemeMode) {
   const isDark =
     mode === "dark" || (mode === "system" && getSystemPrefersDark());
   document.documentElement.classList.toggle("dark", isDark);

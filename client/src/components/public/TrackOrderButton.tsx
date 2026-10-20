@@ -9,6 +9,9 @@ import {
   parseLastOrder,
   subscribeLastOrder,
 } from "@/lib/lastOrder";
+import { useI18n } from "@/i18n/I18nProvider";
+import { localizePath, stripLocale } from "@/i18n/config";
+import { fill } from "@/i18n/text";
 
 /**
  * Raccourci vers la dernière commande passée.
@@ -24,7 +27,8 @@ import {
  * supplémentaire qu'imposait le setState dans l'effet.
  */
 export function TrackOrderButton() {
-  const pathname = usePathname();
+  const { locale, dict } = useI18n();
+  const pathname = stripLocale(usePathname());
 
   const raw = useSyncExternalStore(
     subscribeLastOrder,
@@ -43,9 +47,9 @@ export function TrackOrderButton() {
 
   return (
     <Link
-      href={`/commande/suivi/${lastOrder.id}`}
-      aria-label={`Suivre ma commande numéro ${lastOrder.dailyNumber}`}
-      className="flex h-9 items-center gap-1.5 rounded-full border-2 border-accent-green/80 bg-accent-green/10 px-2.5 font-bold text-accent-green backdrop-blur-2xl transition-colors hover:bg-accent-green/20 sm:pr-3"
+      href={localizePath(locale, `/commande/suivi/${lastOrder.id}`)}
+      aria-label={fill(dict.nav.trackOrder, { number: lastOrder.dailyNumber })}
+      className="flex h-9 items-center gap-1.5 rounded-full border-2 border-accent-green/80 bg-accent-green/10 px-2.5 font-bold text-accent-green backdrop-blur-2xl transition-colors hover:bg-accent-green/20 sm:pe-3"
     >
       <span className="icon-[mdi--progress-clock] size-5" />
       <span className="tabular-nums hidden text-sm sm:inline">

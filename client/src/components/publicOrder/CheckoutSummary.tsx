@@ -8,6 +8,9 @@ import {
   type CartLine,
   type LineDetailTone,
 } from "@/lib/cartLine";
+import { useI18n } from "@/i18n/I18nProvider";
+import { localizePath } from "@/i18n/config";
+import { pluralize } from "@/i18n/text";
 
 const DETAIL_CLASSES: Record<LineDetailTone, string> = {
   neutral: "text-foreground/75",
@@ -49,6 +52,7 @@ export function CheckoutSummary({
   count,
   discount = null,
 }: CheckoutSummaryProps) {
+  const { locale, dict } = useI18n();
   const hasDiscount = discount !== null && discount.amount > 0;
   const payable = Math.max(0, total - (discount?.amount ?? 0));
 
@@ -57,22 +61,22 @@ export function CheckoutSummary({
       <header className="flex items-center justify-between border-b border-dashed border-primary/25 px-5 py-4">
         <div className="flex flex-col">
           <h2 className="font-heading text-base font-bold text-foreground">
-            Votre commande
+            {dict.cart.title}
           </h2>
           <span className="tabular-nums text-xs font-semibold text-foreground/75">
-            {count} article{count > 1 ? "s" : ""}
+            {pluralize(locale, dict.common.items, count)}
           </span>
         </div>
 
         <Link
-          href="/commande"
+          href={localizePath(locale, "/commande")}
           className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-foreground/75 transition-colors hover:bg-primary/10 hover:text-primary"
         >
           <span
             aria-hidden="true"
             className="icon-[mdi--pencil-outline] text-sm"
           />
-          Modifier
+          {dict.summary.edit}
         </Link>
       </header>
 
@@ -85,22 +89,27 @@ export function CheckoutSummary({
 
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <div className="flex items-baseline justify-between gap-2">
-                <p className="truncate font-heading text-sm font-bold text-foreground">
+                <p
+                  dir="auto"
+                  className="truncate font-heading text-sm font-bold text-foreground"
+                >
                   {line.name}
                 </p>
                 <span className="tabular-nums shrink-0 font-heading text-sm font-bold text-foreground">
-                  {formatDA(getLineTotal(line))}
+                  {formatDA(getLineTotal(line), locale)}
                 </span>
               </div>
 
-              {describeLineOptions(line).map((detail, index) => (
-                <p
-                  key={index}
-                  className={`text-xs leading-snug ${DETAIL_CLASSES[detail.tone]}`}
-                >
-                  {detail.label}
-                </p>
-              ))}
+              {describeLineOptions(line, dict.common.without).map(
+                (detail, index) => (
+                  <p
+                    key={index}
+                    className={`text-xs leading-snug ${DETAIL_CLASSES[detail.tone]}`}
+                  >
+                    {detail.label}
+                  </p>
+                ),
+              )}
             </div>
           </li>
         ))}
@@ -113,9 +122,11 @@ export function CheckoutSummary({
         {hasDiscount && (
           <>
             <div className="flex items-baseline justify-between text-sm">
-              <span className="text-foreground/75">Articles</span>
+              <span className="text-foreground/75">
+                {dict.common.itemsTotal}
+              </span>
               <span className="tabular-nums font-semibold text-foreground/80">
-                {formatDA(total)}
+                {formatDA(total, locale)}
               </span>
             </div>
 
@@ -128,7 +139,7 @@ export function CheckoutSummary({
                 {discount.code} · −{discount.percent}%
               </span>
               <span className="tabular-nums font-bold text-accent-green">
-                −{formatDA(discount.amount)}
+                −{formatDA(discount.amount, locale)}
               </span>
             </div>
           </>
@@ -140,10 +151,10 @@ export function CheckoutSummary({
           }`}
         >
           <span className="font-heading text-sm font-bold uppercase tracking-wide text-foreground/70">
-            Sous-total
+            {dict.summary.subtotal}
           </span>
           <span className="tabular-nums font-heading text-2xl font-bold text-accent-green">
-            {formatDA(payable)}
+            {formatDA(payable, locale)}
           </span>
         </div>
       </div>

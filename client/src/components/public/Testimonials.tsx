@@ -4,58 +4,31 @@ import { useState, type CSSProperties } from "react";
 import { DEMO_MODE } from "@/config/site";
 import { useIsPageIdle } from "@/features/motion/useIsPageIdle";
 import { useReducedMotion } from "@/features/motion/useReducedMotion";
+import { useI18n } from "@/i18n/I18nProvider";
+import { fill } from "@/i18n/text";
+import type { Store } from "@/types/store";
 
 interface Testimonial {
   name: string;
-  location: "Kouba" | "Chéraga";
+  store: Store;
   rating: number;
   text: string;
 }
 
-const TESTIMONIALS: Testimonial[] = [
-  {
-    name: "Sofiane B.",
-    location: "Chéraga",
-    rating: 5,
-    text: "Le burger PIRELLI est devenu mon rituel du vendredi soir. Pain toasté, viande juteuse, rien à dire. La livraison a mis 25 minutes montre en main.",
-  },
-  {
-    name: "Amina K.",
-    location: "Kouba",
-    rating: 5,
-    text: "On a commandé pour toute la famille un dimanche, tacos et pizza. Tout est arrivé chaud et bien emballé. Les enfants ont adoré les frites Niwa.",
-  },
-  {
-    name: "Yacine M.",
-    location: "Chéraga",
-    rating: 4,
-    text: "Très bon rapport qualité-prix. J'ai mangé sur place, service rapide même en heure de pointe. Petit bémol sur l'attente un vendredi soir, sinon rien à redire.",
-  },
-  {
-    name: "Lina H.",
-    location: "Kouba",
-    rating: 5,
-    text: "La salade César est vraiment fraîche, pas comme certains fast-foods qui la préparent la veille. On sent que c'est fait minute.",
-  },
-  {
-    name: "Nabil A.",
-    location: "Chéraga",
-    rating: 5,
-    text: "Client depuis l'ouverture. La sauce maison sur le tacos GILERA est unique, je ne l'ai trouvée nulle part ailleurs à Alger.",
-  },
-  {
-    name: "Meriem D.",
-    location: "Kouba",
-    rating: 4,
-    text: "Bonne pizza, pâte bien fine et croustillante. On a commandé à emporter, prêt en 15 minutes comme annoncé. Je recommande.",
-  },
+// Les auteurs seulement : le texte de chaque avis est traduit, dans le même
+// ordre, sous dict.testimonials.texts.
+const AUTHORS: Omit<Testimonial, "text">[] = [
+  { name: "Sofiane B.", store: "cheraga", rating: 5 },
+  { name: "Amina K.", store: "kouba", rating: 5 },
+  { name: "Yacine M.", store: "cheraga", rating: 4 },
+  { name: "Lina H.", store: "kouba", rating: 5 },
+  { name: "Nabil A.", store: "cheraga", rating: 5 },
+  { name: "Meriem D.", store: "kouba", rating: 4 },
 ];
 
-// Seconde rangée : mêmes avis dans un autre ordre, pour que deux avis
-// identiques ne passent jamais l'un au-dessus de l'autre.
-const SECOND_ROW = [...TESTIMONIALS.slice(3), ...TESTIMONIALS.slice(0, 3)];
-
 function StarRating({ rating }: { rating: number }) {
+  const { dict } = useI18n();
+
   return (
     // role="img" indispensable : aria-label n'est autorisé que sur un élément
     // dont le rôle accepte un nom accessible. Un <div> nu a le rôle implicite
@@ -64,7 +37,7 @@ function StarRating({ rating }: { rating: number }) {
     // unique, décrite par son label.
     <div
       role="img"
-      aria-label={`${rating} sur 5 étoiles`}
+      aria-label={fill(dict.testimonials.rating, { rating })}
       className="flex items-center gap-0.5"
     >
       {Array.from({ length: 5 }).map((_, index) => (
@@ -87,6 +60,8 @@ function ReviewCard({
   testimonial: Testimonial;
   index: number;
 }) {
+  const { dict } = useI18n();
+
   return (
     // Légèrement de travers, un coup à gauche, un coup à droite : des avis
     // épinglés au mur, pas une grille de tableau de bord.
@@ -113,7 +88,7 @@ function ReviewCard({
             aria-hidden="true"
             className="icon-[mdi--map-marker] text-base"
           />
-          {testimonial.location}
+          {dict.stores[testimonial.store].name}
         </span>
       </figcaption>
     </figure>
@@ -138,8 +113,9 @@ function ReviewRow({
   duration,
 }: ReviewRowProps) {
   // La piste contient la liste deux fois et glisse de -50 % en boucle. Le
-  // pr-5 de chaque moitié tient lieu d'espace entre elles : un gap sur la
-  // piste ajouterait un demi-espace au trajet, et la boucle sauterait.
+  // pe-5 de chaque moitié tient lieu d'espace entre elles : un gap sur la
+  // piste ajouterait un demi-espace au trajet, et la boucle sauterait. pe
+  // (fin de ligne) et non pr : en arabe, la fin est à gauche.
   return (
     <div
       aria-hidden={extra || undefined}
@@ -154,7 +130,7 @@ function ReviewRow({
       >
         {/* marquee-half : ce sont ces moitiés qui passent en grille quand
             les animations sont réduites (globals.css). */}
-        <div className="marquee-half flex shrink-0 gap-5 pr-5">
+        <div className="marquee-half flex shrink-0 gap-5 pe-5">
           {items.map((testimonial, index) => (
             <ReviewCard
               key={testimonial.name}
@@ -166,7 +142,7 @@ function ReviewRow({
         {withCopy && (
           <div
             aria-hidden="true"
-            className="marquee-copy marquee-half flex shrink-0 gap-5 pr-5"
+            className="marquee-copy marquee-half flex shrink-0 gap-5 pe-5"
           >
             {items.map((testimonial, index) => (
               <ReviewCard
@@ -200,6 +176,15 @@ export function Testimonials() {
   const isPageIdle = useIsPageIdle();
   const prefersReducedMotion = useReducedMotion();
   const isLooping = isPageIdle && !prefersReducedMotion;
+  const { dict } = useI18n();
+
+  const testimonials: Testimonial[] = AUTHORS.map((author, index) => ({
+    ...author,
+    text: dict.testimonials.texts[index],
+  }));
+  // Seconde rangée : mêmes avis dans un autre ordre, pour que deux avis
+  // identiques ne passent jamais l'un au-dessus de l'autre.
+  const secondRow = [...testimonials.slice(3), ...testimonials.slice(0, 3)];
 
   return (
     <section id="avis">
@@ -208,18 +193,18 @@ export function Testimonials() {
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="font-heading text-[2.6rem] font-bold leading-[0.95] tracking-[-0.01em] text-foreground sm:text-6xl">
-              Ce qu&apos;en disent les habitués
+              {dict.testimonials.title}
             </h2>
             {/* Le jour où le restaurant valide le site, ces exemples sont
                 remplacés par de vrais avis (Google, par exemple) et la
                 mention disparaît avec le mode démo. */}
             {DEMO_MODE ? (
               <p className="mt-4 inline-flex rounded-full border-2 border-dashed border-foreground/40 px-4 py-1.5 text-sm font-semibold text-foreground/85">
-                Avis d&apos;exemple pour la démonstration, pas de vrais clients
+                {dict.testimonials.demoNotice}
               </p>
             ) : (
               <p className="mt-3 max-w-md text-base text-foreground/75 sm:text-lg">
-                Des expériences partagées après un passage chez Niwa Food.
+                {dict.testimonials.lead}
               </p>
             )}
           </div>
@@ -233,7 +218,7 @@ export function Testimonials() {
               aria-hidden="true"
               className={`text-lg ${isPaused ? "icon-[mdi--play]" : "icon-[mdi--pause]"}`}
             />
-            {isPaused ? "Relancer les avis" : "Mettre les avis en pause"}
+            {isPaused ? dict.testimonials.resume : dict.testimonials.pause}
           </button>
         </div>
       </div>
@@ -249,10 +234,10 @@ export function Testimonials() {
           data-paused={isPaused}
           data-ready={isLooping}
         >
-          <ReviewRow items={TESTIMONIALS} withCopy={isLooping} duration="70s" />
+          <ReviewRow items={testimonials} withCopy={isLooping} duration="70s" />
           {isLooping && (
             <ReviewRow
-              items={SECOND_ROW}
+              items={secondRow}
               reverse
               extra
               withCopy

@@ -17,6 +17,8 @@ import {
 } from "@/features/publicOrder/menuBlocks";
 import { scrollToAnchor } from "@/features/publicOrder/useSectionSpy";
 import type { MenuNavGroup } from "@/features/menu/menuNav";
+import { useI18n } from "@/i18n/I18nProvider";
+import { pluralize } from "@/i18n/text";
 
 interface MenuFiltersProps {
   nav: MenuNavGroup[];
@@ -92,6 +94,7 @@ export function MenuFilters({ nav }: MenuFiltersProps) {
   const search = useAppSelector(selectSearch);
   const activeGroup = useAppSelector(selectActiveGroup);
   const activeSubKey = useAppSelector(selectActiveSubKey);
+  const { locale, dict } = useI18n();
 
   const chipRefs = useRef(new Map<string, HTMLButtonElement>());
   const railRef = useRef<HTMLDivElement>(null);
@@ -123,14 +126,21 @@ export function MenuFilters({ nav }: MenuFiltersProps) {
     // la page n'est jamais touchée.
     if (rail.scrollWidth <= rail.clientWidth) return; // en colonne (lg) : rien à faire
 
-    const target = chip.offsetLeft - (rail.clientWidth - chip.offsetWidth) / 2;
+    // Déplacement RELATIF : l'écart entre le centre de la pastille et celui
+    // du rail. Une position absolue (offsetLeft, scrollTo) ne marche pas en
+    // arabe : dans un rail de droite à gauche, scrollLeft part de 0 et
+    // devient NÉGATIF, une cible positive serait ramenée à 0.
+    const railBox = rail.getBoundingClientRect();
+    const chipBox = chip.getBoundingClientRect();
+    const offset =
+      chipBox.left + chipBox.width / 2 - (railBox.left + railBox.width / 2);
 
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
 
-    rail.scrollTo({
-      left: Math.max(0, target),
+    rail.scrollBy({
+      left: offset,
       behavior: prefersReducedMotion ? "auto" : "smooth",
     });
   }, [activeGroup]);
@@ -149,17 +159,17 @@ export function MenuFilters({ nav }: MenuFiltersProps) {
       ref={asideRef}
       className="sticky top-(--sticky-top) z-30 mb-6 flex flex-col gap-2.5 rounded-3xl border border-primary/20 bg-background/70 p-2.5 shadow-[0_10px_35px_-15px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:p-3 lg:mb-0 lg:max-h-[calc(100dvh_-_var(--sticky-top)_-_2rem)] lg:w-64 lg:shrink-0 lg:overflow-hidden lg:p-4 dark:bg-primary/10">
       <label className="relative block">
-        <span className="sr-only">Rechercher un plat</span>
+        <span className="sr-only">{dict.menu.searchLabel}</span>
         <span
           aria-hidden="true"
-          className="icon-[mdi--magnify] pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl text-foreground/40"
+          className="icon-[mdi--magnify] pointer-events-none absolute start-4 top-1/2 -translate-y-1/2 text-xl text-foreground/40"
         />
         <input
           type="search"
           value={search}
           onChange={(event) => dispatch(searchChanged(event.target.value))}
-          placeholder="Un plat, un ingrédient..."
-          className="h-12 w-full rounded-full border border-primary/20 bg-background/60 pl-12 pr-11 text-foreground outline-none transition-colors placeholder:text-foreground/40 focus:border-primary focus:bg-background/90 lg:h-11 lg:rounded-xl lg:pl-11 lg:text-sm"
+          placeholder={dict.menu.searchPlaceholder}
+          className="h-12 w-full rounded-full border border-primary/20 bg-background/60 ps-12 pe-11 text-foreground outline-none transition-colors placeholder:text-foreground/40 focus:border-primary focus:bg-background/90 lg:h-11 lg:rounded-xl lg:ps-11 lg:text-sm"
         />
         {/* Sortie de secours explicite : le × natif de input[type=search]
             n'apparaît pas sur Firefox ni sur la plupart des navigateurs
@@ -169,8 +179,8 @@ export function MenuFilters({ nav }: MenuFiltersProps) {
           <button
             type="button"
             onClick={() => dispatch(searchChanged(""))}
-            aria-label="Effacer la recherche"
-            className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-primary/10 hover:text-foreground"
+            aria-label={dict.menu.clearSearch}
+            className="absolute end-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-primary/10 hover:text-foreground"
           >
             <span aria-hidden="true" className="icon-[mdi--close] text-lg" />
           </button>
@@ -179,17 +189,17 @@ export function MenuFilters({ nav }: MenuFiltersProps) {
 
       <p className="hidden items-baseline justify-between px-1 lg:mt-1 lg:flex">
         <span className="font-heading text-xs font-bold uppercase tracking-wide text-foreground/70">
-          La carte
+          {dict.menu.cardTitle}
         </span>
         <span className="tabular-nums text-xs font-semibold text-foreground/70">
-          {totalCount} plats
+          {pluralize(locale, dict.menu.dishCount, totalCount)}
         </span>
       </p>
 
       {/* Zone défilante. En colonne (lg), min-h-0 est indispensable : sans
           lui un enfant de flex refuse de passer sous la hauteur de son
           contenu, et overflow-y-auto n'a jamais rien à faire défiler. */}
-      <div className="flex flex-col gap-2.5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+      <div className="flex flex-col gap-2.5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pe-1">
         <div
           ref={railRef}
           className="scrollbar-hide flex gap-2 overflow-x-auto pb-0.5 lg:flex-col lg:gap-1 lg:overflow-x-visible lg:pb-0"
@@ -231,7 +241,7 @@ export function MenuFilters({ nav }: MenuFiltersProps) {
                 {/* Plus d'opacité sur le compteur : à 70 % sur la puce dorée
                     active, il tombait à 3,4:1, sous le seuil AA de 4,5:1. */}
                 <span
-                  className={`tabular-nums text-xs lg:ml-auto ${
+                  className={`tabular-nums text-xs lg:ms-auto ${
                     isActive ? "" : "text-foreground/70"
                   }`}
                 >
@@ -246,7 +256,7 @@ export function MenuFilters({ nav }: MenuFiltersProps) {
           volontairement différente du premier — souligné plutôt que rempli —
           pour qu'on lise une subdivision, pas un pair. */}
         {subChips.length > 1 && (
-          <div className="flex flex-col gap-1 rounded-2xl bg-primary/5 px-2 py-2 lg:ml-2 lg:rounded-xl lg:px-1.5 lg:py-1.5">
+          <div className="flex flex-col gap-1 rounded-2xl bg-primary/5 px-2 py-2 lg:ms-2 lg:rounded-xl lg:px-1.5 lg:py-1.5">
             <span className="px-2 pb-0.5 text-xs font-bold uppercase tracking-wide text-foreground/70">
               {currentGroup?.label}
             </span>
@@ -260,7 +270,7 @@ export function MenuFilters({ nav }: MenuFiltersProps) {
                     type="button"
                     onClick={() => scrollToAnchor(subAnchorId(sub.key))}
                     aria-current={isActive ? "true" : undefined}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-lg border-b-2 px-3 py-1.5 text-xs font-bold transition-colors lg:w-full lg:justify-between lg:border-b-0 lg:border-l-2 ${
+                    className={`flex shrink-0 items-center gap-1.5 rounded-lg border-b-2 px-3 py-1.5 text-xs font-bold transition-colors lg:w-full lg:justify-between lg:border-b-0 lg:border-s-2 ${
                       isActive
                         ? "border-primary bg-primary/10 text-primary"
                         : "border-transparent text-foreground/75 hover:text-foreground"

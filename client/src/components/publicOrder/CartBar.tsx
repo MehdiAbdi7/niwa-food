@@ -2,6 +2,8 @@
 
 import { useCart } from "@/features/publicOrder/useCart";
 import { formatDA } from "@/lib/format";
+import { useI18n } from "@/i18n/I18nProvider";
+import { fill, pluralize } from "@/i18n/text";
 
 // Trois vignettes suffisent à signaler « c'est bien ma commande » ; au-delà
 // elles se chevauchent trop pour rester reconnaissables, et le compteur prend
@@ -21,11 +23,13 @@ const PREVIEW_LIMIT = 3;
  */
 export function CartBar() {
   const { lines, count, total, openTicket } = useCart();
+  const { locale, dict } = useI18n();
 
   if (count === 0) return null;
 
   const preview = lines.slice(0, PREVIEW_LIMIT);
   const hidden = lines.length - preview.length;
+  const itemsLabel = pluralize(locale, dict.common.items, count);
 
   return (
     <div
@@ -35,8 +39,11 @@ export function CartBar() {
       <button
         type="button"
         onClick={openTicket}
-        aria-label={`Voir mon panier, ${count} article${count > 1 ? "s" : ""}, ${total} dinars`}
-        className="mx-auto flex h-16 w-full max-w-md items-center gap-3 rounded-full bg-primary pl-2.5 pr-4 text-on-primary shadow-[0_14px_38px_-10px_rgba(0,0,0,0.65)] transition-transform hover:scale-[1.02] active:scale-[0.99] motion-safe:animate-[cartBarIn_0.28s_ease-out]"
+        aria-label={fill(dict.cart.openLabel, {
+          items: itemsLabel,
+          total: formatDA(total, locale),
+        })}
+        className="mx-auto flex h-16 w-full max-w-md items-center gap-3 rounded-full bg-primary ps-2.5 pe-4 text-on-primary shadow-[0_14px_38px_-10px_rgba(0,0,0,0.65)] transition-transform hover:scale-[1.02] active:scale-[0.99] motion-safe:animate-[cartBarIn_0.28s_ease-out]"
       >
         <span aria-hidden="true" className="flex shrink-0 items-center">
           {preview.map((line, index) => (
@@ -45,7 +52,7 @@ export function CartBar() {
               // Chevauchement négatif : la pile évoque un sac qu'on remplit,
               // et tient dans la largeur d'une seule vignette et demie.
               className={`flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border-2 border-primary bg-on-primary/15 ${
-                index > 0 ? "-ml-4" : ""
+                index > 0 ? "-ms-4" : ""
               }`}
               style={{ zIndex: PREVIEW_LIMIT - index }}
             >
@@ -59,23 +66,23 @@ export function CartBar() {
           ))}
 
           {hidden > 0 && (
-            <span className="tabular-nums -ml-4 flex h-11 w-11 items-center justify-center rounded-full border-2 border-primary bg-on-primary/20 text-xs font-bold">
+            <span className="tabular-nums -ms-4 flex h-11 w-11 items-center justify-center rounded-full border-2 border-primary bg-on-primary/20 text-xs font-bold">
               +{hidden}
             </span>
           )}
         </span>
 
-        <span className="flex min-w-0 flex-1 flex-col text-left">
+        <span className="flex min-w-0 flex-1 flex-col text-start">
           <span className="font-heading text-base font-bold leading-tight">
-            Voir mon panier
+            {dict.cart.open}
           </span>
           <span className="tabular-nums text-xs font-semibold opacity-75">
-            {count} article{count > 1 ? "s" : ""}
+            {itemsLabel}
           </span>
         </span>
 
         <span className="tabular-nums shrink-0 font-heading text-base font-bold">
-          {formatDA(total)}
+          {formatDA(total, locale)}
         </span>
         <span aria-hidden="true" className="icon-[mdi--chevron-up] shrink-0 text-xl opacity-80" />
       </button>

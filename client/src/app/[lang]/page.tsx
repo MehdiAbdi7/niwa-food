@@ -1,6 +1,7 @@
 // page.tsx
 
 import Image from "next/image";
+import { notFound } from "next/navigation";
 import { About } from "@/components/public/About";
 import { BestSellers } from "@/components/public/BestSellers";
 import { Contact } from "@/components/public/Contact";
@@ -9,6 +10,8 @@ import { HowItWorks } from "@/components/public/HowItWorks";
 import { RestaurantJsonLd } from "@/components/public/RestaurantJsonLd";
 import { StreetBands } from "@/components/public/StreetBands";
 import { Testimonials } from "@/components/public/Testimonials";
+import { hasLocale } from "@/i18n/config";
+import { getDictionary } from "@/i18n/getDictionary";
 
 // Toutes les décorations ci-dessous vivent dans un cadre `w-56` visible à
 // partir de xl uniquement : leur largeur d'affichage est donc constante, d'où
@@ -75,13 +78,26 @@ function SideDeco({ src, side, className, imageClassName }: SideDecoProps) {
  * Chaque décoration est accrochée à la section qu'elle borde (un parent
  * `relative`), et non posée entre deux sections : un élément de plus dans
  * la colonne flex ajouterait un espace (gap) de plus.
+ *
+ * Seul Hero reçoit ses textes en props : c'est le seul composant serveur de
+ * la page. Les autres sont des composants client, ils les lisent avec
+ * useI18n().
  */
-export default function Home() {
+export default async function Home({
+  params,
+}: {
+  params: Promise<{ lang: string }>;
+}) {
+  // Même vérification sur chaque page publique : /dashboard/xyz arrive dans
+  // app/[lang] avec lang = "dashboard", c'est ici qu'il devient un 404.
+  const { lang } = await params;
+  if (!hasLocale(lang)) notFound();
+
   return (
     <>
       <RestaurantJsonLd />
 
-      <Hero />
+      <Hero locale={lang} dict={getDictionary(lang)} />
       <StreetBands />
 
       <div className="flex flex-col gap-24 pb-24 pt-10 sm:gap-32 sm:pb-32">

@@ -3,6 +3,8 @@
 import type { KeyboardEvent } from "react";
 import { formatDA } from "@/lib/format";
 import type { UsePromoCodeResult } from "@/features/publicOrder/usePromoCode";
+import { useI18n } from "@/i18n/I18nProvider";
+import { fill } from "@/i18n/text";
 
 /**
  * Saisie d'un code promo, dans le tunnel de commande.
@@ -18,6 +20,7 @@ import type { UsePromoCodeResult } from "@/features/publicOrder/usePromoCode";
  */
 export function PromoCodeField({ promo }: { promo: UsePromoCodeResult }) {
   const { input, setInput, applied, error, isChecking, apply, clear } = promo;
+  const { locale, dict } = useI18n();
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter") return;
@@ -40,12 +43,15 @@ export function PromoCodeField({ promo }: { promo: UsePromoCodeResult }) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <p className="font-heading text-sm font-bold text-foreground">
-            Code {applied.code} appliqué
+            {fill(dict.promo.applied, { code: applied.code })}
           </p>
           <p className="tabular-nums text-xs text-foreground/75">
-            −{applied.discountPercent}% sur vos articles ·{" "}
+            {fill(dict.promo.discount, { percent: applied.discountPercent })}{" "}
+            ·{" "}
             <span className="font-bold text-accent-green">
-              {formatDA(applied.discountAmount)} économisés
+              {fill(dict.promo.saved, {
+                amount: formatDA(applied.discountAmount, locale),
+              })}
             </span>
           </p>
         </div>
@@ -53,7 +59,7 @@ export function PromoCodeField({ promo }: { promo: UsePromoCodeResult }) {
         <button
           type="button"
           onClick={clear}
-          aria-label="Retirer le code promo"
+          aria-label={dict.promo.remove}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground/40 transition-colors hover:bg-accent-bordeaux/10 hover:text-accent-bordeaux"
         >
           <span aria-hidden="true" className="icon-[mdi--close] text-lg" />
@@ -68,9 +74,9 @@ export function PromoCodeField({ promo }: { promo: UsePromoCodeResult }) {
         htmlFor="promoCode"
         className="flex items-baseline gap-2 font-heading text-sm font-bold text-foreground"
       >
-        Code promo
+        {dict.promo.label}
         <span className="text-xs font-semibold text-foreground/40">
-          facultatif
+          {dict.common.optional}
         </span>
       </label>
 
@@ -89,7 +95,7 @@ export function PromoCodeField({ promo }: { promo: UsePromoCodeResult }) {
           // corresponde à ce qui part.
           onChange={(event) => setInput(event.target.value.toUpperCase())}
           onKeyDown={handleKeyDown}
-          placeholder="Ex : NIWA10"
+          placeholder={dict.promo.placeholder}
           className="h-12 min-w-0 flex-1 rounded-xl border border-primary/25 bg-background/85 px-4 font-heading font-bold uppercase tracking-wider text-foreground outline-none transition-colors placeholder:font-body placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-foreground/40 focus:border-primary"
         />
 
@@ -105,7 +111,7 @@ export function PromoCodeField({ promo }: { promo: UsePromoCodeResult }) {
               className="icon-[mdi--loading] animate-spin text-lg"
             />
           ) : (
-            "Appliquer"
+            dict.promo.apply
           )}
         </button>
       </div>

@@ -11,7 +11,10 @@ import {
   parseLastOrder,
   subscribeLastOrder,
 } from "@/lib/lastOrder";
-import { STORES, STORE_LABELS, type Store } from "@/types/store";
+import { STORES, type Store } from "@/types/store";
+import { useI18n } from "@/i18n/I18nProvider";
+import { localizePath } from "@/i18n/config";
+import { fill } from "@/i18n/text";
 
 /**
  * Retrouver sa commande sans le lien de suivi.
@@ -30,6 +33,8 @@ import { STORES, STORE_LABELS, type Store } from "@/types/store";
 export function OrderLookupForm() {
   const router = useRouter();
   const [lookup, { isFetching }] = useLazyLookupOrderQuery();
+  const { locale, dict } = useI18n();
+  const texts = dict.lookup;
 
   const [store, setStore] = useState<Store | null>(null);
   const [dailyNumber, setDailyNumber] = useState("");
@@ -51,13 +56,13 @@ export function OrderLookupForm() {
     setError(null);
 
     if (!store) {
-      setError("Choisissez d'abord votre restaurant");
+      setError(texts.errors.store);
       return;
     }
 
     const parsed = Number(dailyNumber);
     if (!Number.isInteger(parsed) || parsed < 1) {
-      setError("Entrez le numéro figurant sur votre commande");
+      setError(texts.errors.number);
       return;
     }
 
@@ -66,16 +71,11 @@ export function OrderLookupForm() {
       // replace et non push : ce formulaire est un aiguillage, pas une étape.
       // Le bouton « retour » du navigateur doit ramener à la page précédente,
       // pas rejouer une recherche déjà aboutie.
-      router.replace(`/commande/suivi/${_id}`);
+      router.replace(localizePath(locale, `/commande/suivi/${_id}`));
     } catch (err) {
       // Le 404 du backend porte déjà le bon message, volontairement identique
       // pour tous les cas d'échec.
-      setError(
-        getApiErrorMessage(
-          err,
-          "Impossible de retrouver cette commande pour le moment.",
-        ),
-      );
+      setError(getApiErrorMessage(err, texts.errors.failed));
     }
   }
 
@@ -85,14 +85,13 @@ export function OrderLookupForm() {
     <div className="relative z-10 mx-auto w-full max-w-md px-4 pb-20 pt-28 sm:pt-32">
       <header className="mb-6 flex flex-col gap-2 text-center">
         <span className="font-heading text-sm font-bold uppercase tracking-wide text-accent-green">
-          Suivi de commande
+          {texts.eyebrow}
         </span>
         <h1 className="font-heading text-2xl font-bold leading-tight text-foreground sm:text-3xl">
-          Où en est ma commande ?
+          {texts.title}
         </h1>
         <p className="text-sm leading-relaxed text-foreground/75">
-          Entrez le numéro affiché au moment de votre commande, on vous montre
-          où elle en est.
+          {texts.lead}
         </p>
       </header>
 
@@ -101,7 +100,7 @@ export function OrderLookupForm() {
           champs à remplir. */}
       {lastOrder && (
         <Link
-          href={`/commande/suivi/${lastOrder.id}`}
+          href={localizePath(locale, `/commande/suivi/${lastOrder.id}`)}
           className="mb-5 flex min-h-14 items-center gap-3 rounded-2xl border border-accent-green/40 bg-accent-green/10 px-4 py-3 backdrop-blur-sm transition-colors hover:bg-accent-green/20"
         >
           <span
@@ -110,15 +109,15 @@ export function OrderLookupForm() {
           />
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="font-heading text-sm font-bold text-foreground">
-              Votre dernière commande
+              {texts.lastOrder}
             </span>
             <span className="tabular-nums text-xs text-foreground/75">
-              N° {lastOrder.dailyNumber}
+              {fill(texts.lastOrderNumber, { number: lastOrder.dailyNumber })}
             </span>
           </span>
           <span
             aria-hidden="true"
-            className="icon-[mdi--chevron-right] shrink-0 text-xl text-accent-green"
+            className="icon-[mdi--chevron-right] shrink-0 text-xl text-accent-green rtl:-scale-x-100"
           />
         </Link>
       )}
@@ -130,7 +129,7 @@ export function OrderLookupForm() {
         {/* ---------- Restaurant ---------- */}
         <fieldset className="flex flex-col gap-2.5">
           <legend className="mb-2.5 font-heading text-sm font-bold uppercase tracking-wide text-foreground/70">
-            Quel restaurant ?
+            {dict.common.whichStore}
           </legend>
 
           <div className="grid grid-cols-2 gap-2">
@@ -150,7 +149,7 @@ export function OrderLookupForm() {
                 }`}
               >
                 <span aria-hidden="true" className="icon-[mdi--map-marker] text-lg" />
-                {STORE_LABELS[option]}
+                {dict.stores[option].name}
               </button>
             ))}
           </div>
@@ -162,7 +161,7 @@ export function OrderLookupForm() {
             htmlFor="dailyNumber"
             className="font-heading text-sm font-bold text-foreground"
           >
-            Numéro de commande
+            {texts.numberLabel}
           </label>
           {/* inputMode numeric : le clavier du téléphone s'ouvre sur les
               chiffres. type="text" et non "number" — celui-ci fait apparaître
@@ -177,14 +176,11 @@ export function OrderLookupForm() {
               setDailyNumber(event.target.value.replace(/\D/g, ""));
               setError(null);
             }}
-            placeholder="Ex : 12"
+            placeholder={texts.numberPlaceholder}
             maxLength={4}
             className="tabular-nums h-16 w-full rounded-xl border border-primary/25 bg-background/85 px-4 text-center font-heading text-3xl font-bold text-foreground outline-none transition-colors placeholder:font-body placeholder:text-lg placeholder:font-normal placeholder:text-foreground/35 focus:border-primary"
           />
-          <p className="text-xs text-foreground/45">
-            C&apos;est le grand numéro affiché après validation de votre
-            commande.
-          </p>
+          <p className="text-xs text-foreground/45">{texts.numberHint}</p>
         </div>
 
         {error && (
@@ -207,14 +203,14 @@ export function OrderLookupForm() {
                 aria-hidden="true"
                 className="icon-[mdi--loading] animate-spin text-xl"
               />
-              Recherche…
+              {texts.searching}
             </>
           ) : (
             <>
-              Voir ma commande
+              {texts.submit}
               <span
                 aria-hidden="true"
-                className="icon-[line-md--arrow-right-circle-twotone] text-xl"
+                className="icon-[line-md--arrow-right-circle-twotone] text-xl rtl:-scale-x-100"
               />
             </>
           )}
@@ -226,10 +222,12 @@ export function OrderLookupForm() {
           Autant lui dire où appeler plutôt que de le laisser retaper un
           numéro qui ne donnera jamais rien. */}
       <p className="mt-5 text-center text-xs leading-relaxed text-foreground/75">
-        Seules les commandes en cours de préparation ou de livraison sont
-        consultables ici.{" "}
-        <Link href="/contact" className="font-semibold text-primary underline">
-          Un souci ? Appelez-nous
+        {texts.footnote}{" "}
+        <Link
+          href={localizePath(locale, "/contact")}
+          className="font-semibold text-primary underline"
+        >
+          {texts.help}
         </Link>
       </p>
     </div>

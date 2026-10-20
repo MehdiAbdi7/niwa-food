@@ -133,8 +133,15 @@ export interface LineDetail {
  * Centralisé ici plutôt que reconstruit dans chaque composant : le ticket
  * client, le ticket imprimé et la fiche commande doivent raconter exactement
  * la même chose, sinon le client et la cuisine ne lisent pas la même commande.
+ *
+ * `without` est le seul mot qui ne vient pas du menu : le site public passe
+ * celui de sa langue (« بدون », « no »), le français reste la valeur par
+ * défaut.
  */
-export function describeLineOptions(line: CartLine): LineDetail[] {
+export function describeLineOptions(
+  line: CartLine,
+  without = "sans",
+): LineDetail[] {
   const details: LineDetail[] = [];
   const variantLabel = formatVariantLabel(line.variant.combination);
 
@@ -160,7 +167,7 @@ export function describeLineOptions(line: CartLine): LineDetail[] {
 
   if (line.excludedIngredients.length > 0) {
     details.push({
-      label: `sans ${line.excludedIngredients.join(", ")}`,
+      label: `${without} ${line.excludedIngredients.join(", ")}`,
       tone: "removed",
     });
   }

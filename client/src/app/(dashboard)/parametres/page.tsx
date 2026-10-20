@@ -2,6 +2,7 @@ import { ProfileCard } from "@/components/settings/ProfileCard";
 import { ServiceManagementCard } from "@/components/settings/ServiceManagementCard";
 import { OrderIntakeCard } from "@/components/settings/OrderIntakeCard";
 import { AppearanceCard } from "@/components/settings/AppearanceCard";
+import { SoundCard } from "@/components/settings/SoundCard";
 import { SessionCard } from "@/components/settings/SessionCard";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 
@@ -23,6 +24,7 @@ export default function ParametresPage() {
       <ProfileCard />
       <ServiceManagementCard />
       <OrderIntakeCard />
+      <SoundCard />
       <AppearanceCard />
       <SessionCard />
     </div>

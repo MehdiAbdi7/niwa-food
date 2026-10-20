@@ -25,23 +25,65 @@ const STRIKE_OFFSETS_S = [0, 0.32];
 let context: AudioContext | null = null;
 const listeners = new Set<() => void>();
 
+// Vrai une fois qu'un son (muet) a réellement démarré pendant un geste.
+// Voir unlockAudio : sur iPhone, c'est ce qui ouvre la sortie audio.
+let isOutputOpened = false;
+
+// API propre à Safari (Audio Session), absente des types DOM de TypeScript.
+type NavigatorWithAudioSession = Navigator & {
+  audioSession?: { type: string };
+};
+
+function preferPlaybackSession(): void {
+  // Par défaut, Safari range le son d'une page dans la catégorie
+  // « ambiance » : coupé par le mode silencieux de l'iPhone, traité comme un
+  // bruit secondaire. « playback » le traite comme une vidéo : il suit le
+  // volume multimédia et sonne même en silencieux, ce qu'on veut pour une
+  // alerte de cuisine. Sans effet sur les navigateurs qui ignorent l'API.
+  const nav = navigator as NavigatorWithAudioSession;
+  if (nav.audioSession) nav.audioSession.type = "playback";
+}
+
 function getContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!context) {
     try {
+      preferPlaybackSession();
       context = new AudioContext();
     } catch {
       return null;
     }
-    context.onstatechange = () => listeners.forEach((listener) => listener());
+    context.onstatechange = () => {
+      // Suspendue ou interrompue (appel, app en arrière-plan) : sur iPhone,
+      // la sortie se referme, il faudra la rouvrir au prochain geste.
+      if (context?.state !== "running") isOutputOpened = false;
+      listeners.forEach((listener) => listener());
+    };
   }
   return context;
 }
 
-/** À appeler depuis un gestionnaire de clic ou de touche : débloque le son. */
+/**
+ * À appeler depuis un gestionnaire de clic ou de toucher : débloque le son.
+ *
+ * resume() seul ne suffit pas sur iPhone : Safari passe bien l'état à
+ * « running », mais la sortie audio ne s'ouvre que si un son DÉMARRE pendant
+ * le geste. D'où le buffer muet d'un seul échantillon, la parade utilisée
+ * par les bibliothèques audio (Howler, Tone.js). Inaudible, et sans effet
+ * ailleurs que sur iPhone.
+ */
 export function unlockAudio(): void {
   const ctx = getContext();
-  if (ctx && ctx.state !== "running") void ctx.resume().catch(() => {});
+  if (!ctx) return;
+  if (ctx.state === "running" && isOutputOpened) return;
+
+  if (ctx.state !== "running") void ctx.resume().catch(() => {});
+
+  const silence = ctx.createBufferSource();
+  silence.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+  silence.connect(ctx.destination);
+  silence.start(0);
+  isOutputOpened = true;
 }
 
 /** Abonnement pour useSyncExternalStore : prévient à chaque blocage ou déblocage. */
@@ -95,4 +137,25 @@ export function playNewOrderBell(): void {
       strike(ctx, BELL_FUNDAMENTAL_HZ * ratio, now + offset, peak, decay);
     });
   });
+}
+
+/**
+ * Bouton « Tester le son » : débloque et sonne dans le même geste.
+ * Renvoie faux si le navigateur refuse toujours le son.
+ */
+export async function playTestBell(): Promise<boolean> {
+  unlockAudio();
+  const ctx = getContext();
+  if (!ctx) return false;
+
+  // resume() est asynchrone : sans cette attente, playNewOrderBell verrait
+  // encore l'état « suspended » et ne jouerait rien au premier essai.
+  try {
+    await ctx.resume();
+  } catch {
+    return false;
+  }
+
+  playNewOrderBell();
+  return ctx.state === "running";
 }

@@ -103,16 +103,20 @@ export function NewOrderAlert() {
     dispatch(acknowledgedPruned(pendingKey ? pendingKey.split(",") : []));
   }, [dispatch, isHydrated, isSuccess, pendingKey]);
 
-  // Le navigateur n'accepte de débloquer le son que pendant un geste de
-  // l'utilisateur : on écoute le premier, n'importe où sur la page.
+  // Le navigateur n'accepte d'ouvrir le son que pendant un geste de
+  // l'utilisateur : on écoute les gestes, n'importe où sur la page.
+  // Toujours actif, pas seulement quand le son est déclaré « bloqué » : sur
+  // iPhone, l'état peut être « running » alors que la sortie audio n'est pas
+  // encore ouverte. unlockAudio ne fait plus rien une fois la sortie ouverte.
   useEffect(() => {
-    if (!audioBlocked) return;
-    UNLOCK_EVENTS.forEach((type) => window.addEventListener(type, unlockAudio));
+    UNLOCK_EVENTS.forEach((type) =>
+      window.addEventListener(type, unlockAudio, { passive: true }),
+    );
     return () =>
       UNLOCK_EVENTS.forEach((type) =>
         window.removeEventListener(type, unlockAudio),
       );
-  }, [audioBlocked]);
+  }, []);
 
   // Ce que l'effet précédent a vu : sert à distinguer une VRAIE nouvelle
   // commande (sonner tout de suite) d'un simple nouveau rendu.

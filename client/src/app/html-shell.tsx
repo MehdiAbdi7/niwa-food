@@ -27,6 +27,7 @@ import "@fontsource-variable/noto-sans-arabic";
 import "./globals.css";
 import { Providers } from "./providers";
 import { DEMO_MODE, SITE_URL } from "@/config/site";
+import { ThemeScript } from "@/features/theme/ThemeScript";
 
 /**
  * Métadonnées communes au site public et au back-office. Chaque layout
@@ -41,23 +42,6 @@ export const sharedMetadata: Metadata = {
   // ce site comme celui du restaurant. Voir config/site.ts.
   robots: DEMO_MODE ? { index: false, follow: false } : undefined,
 };
-
-const themeInitScript = `
-(function() {
-  try {
-    const stored = localStorage.getItem("theme");
-    const mode = stored || "system";
-    const isDark = mode === "dark" ||
-      (mode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    }
-  } catch {
-    // localStorage indisponible (navigation privée stricte, cookies bloqués...)
-    // → on ignore, la page reste simplement en mode clair par défaut
-  }
-})();
-`;
 
 interface HtmlShellProps {
   lang: string;
@@ -91,7 +75,7 @@ export function HtmlShell({ lang, dir, children }: HtmlShellProps) {
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <ThemeScript />
       </head>
       <body className="flex min-h-full flex-col overflow-x-clip">
         <Providers>{children}</Providers>

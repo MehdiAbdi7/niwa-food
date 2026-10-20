@@ -14,7 +14,7 @@ export type UserRole = "admin" | "employee" | "delivery";
 
 export interface IUser {
   firstname: string;
-  lastname: string;
+  lastname?: string;
   email: string;
   tel: string;
   password: string;

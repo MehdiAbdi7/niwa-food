@@ -213,7 +213,8 @@ Corollaire : le client ne peut plus effacer le token lui-même — la déconnexi
 
 - Impossible de **supprimer son propre compte**
 - Impossible de **supprimer ou rétrograder le dernier admin** (la condition porte sur « cesse d'être admin », donc passer le dernier admin en livreur est aussi bloqué)
-- `PATCH /auth/me` (self-service) **n'accepte ni `role` ni `store`** — sans quoi un employé s'auto-promouvrait admin en « modifiant son profil »
+- Seul l'admin modifie les infos des comptes : `PATCH /auth/me` est réservé à l'admin, un employé ou un livreur demande la correction à l'admin
+- `PATCH /auth/me` **n'accepte ni `role` ni `store`** — si la route est un jour rouverte aux autres rôles, un employé ne pourra pas s'auto-promouvoir admin en « modifiant son profil »
 
 ---
 
@@ -239,7 +240,7 @@ Toutes les réponses suivent la même enveloppe :
 | `GET`    | `/`                 | auth   | Session courante                                   |
 | `POST`   | `/login`            | public | Connexion (5 tentatives / 15 min)                  |
 | `POST`   | `/logout`           | public | Efface le cookie (volontairement sans `CheckAuth`) |
-| `PATCH`  | `/me`               | auth   | Profil personnel — contact uniquement              |
+| `PATCH`  | `/me`               | admin  | Profil personnel — contact uniquement              |
 | `GET`    | `/delivery-persons` | staff  | Livreurs assignables (projection minimale)         |
 | `POST`   | `/register`         | admin  | Création de compte                                 |
 | `GET`    | `/users`            | admin  | Liste, filtres `?store=`, `?role=`                 |

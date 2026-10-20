@@ -318,8 +318,9 @@ export function OrderDetailModal({ orderId, onClose }: OrderDetailModalProps) {
                   />
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate text-sm font-semibold text-foreground">
+                      {/* `?? ""` : dans un gabarit, un nom absent s'écrirait « undefined » */}
                       {deliveryPerson
-                        ? `${deliveryPerson.firstname} ${deliveryPerson.lastname}`
+                        ? `${deliveryPerson.firstname} ${deliveryPerson.lastname ?? ""}`
                         : "Sans livreur assigné"}
                     </span>
                     <span className="tabular-nums text-xs text-foreground/75">

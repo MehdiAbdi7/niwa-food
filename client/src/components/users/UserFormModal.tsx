@@ -131,10 +131,9 @@ export function UserFormModal({ isOpen, onClose, user }: UserFormModalProps) {
           />
           <Input
             id="lastname"
-            label="Nom"
+            label="Nom (facultatif)"
             value={lastname}
             onChange={(e) => setLastname(e.target.value)}
-            required
           />
         </div>
 

@@ -35,12 +35,14 @@ authRouter.post("/login", loginLimiter, validateBodySchema(loginSchema), login);
 // un cookie mort dans le navigateur, et l'utilisateur coincé sur /login.
 authRouter.post("/logout", logout);
 
-// Self-service, ouvert à tout rôle — livreur compris, pour qu'il puisse
-// corriger son propre numéro — mais restreint aux infos de contact.
-// Ne jamais autoriser role/store ici (voir updateOwnProfile côté contrôleur).
+// Réservé à l'admin : seul l'admin modifie les infos des comptes, le sien
+// compris. Un employé ou un livreur demande la correction à l'admin, qui passe
+// par PATCH /users/:id. Restreint aux infos de contact : ne jamais autoriser
+// role/store ici (voir updateOwnProfile côté contrôleur).
 authRouter.patch(
   "/me",
   CheckAuth,
+  isAdmin,
   validateBodySchema(updateProfileSchema),
   updateOwnProfile,
 );

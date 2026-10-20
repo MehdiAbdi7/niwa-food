@@ -26,7 +26,9 @@ export const loginSchema = z.object({
 export const registerSchema = loginSchema
   .extend({
     firstname: z.string().min(3).trim(),
-    lastname: z.string().min(1).trim(),
+    // Nom facultatif : le formulaire envoie "" quand il est vide, et
+    // `.optional()` seul n'accepte que l'absence du champ, d'où l'absence de min.
+    lastname: z.string().trim().optional(),
     tel: z.string().min(10),
     role: roleSchema.default("employee"),
     store: z.enum(STORES).optional(),
@@ -45,7 +47,7 @@ export const registerSchema = loginSchema
 // pre("validate") du modèle, seul endroit qui voit le document final.
 export const updateUserSchema = z.object({
   firstname: z.string().min(3).max(30).trim().optional(),
-  lastname: z.string().min(1).max(30).trim().optional(),
+  lastname: z.string().max(30).trim().optional(),
   email: z.email("Email must be valid").trim().toLowerCase().optional(),
   tel: z.string().min(10).optional(),
   role: roleSchema.optional(),
@@ -59,10 +61,10 @@ export const usersQuerySchema = z.object({
   role: roleSchema.optional(),
 });
 
-// UPDATE PROFILE INFO (par l'utilisateur lui-même)
+// UPDATE PROFILE INFO (l'admin, sur son propre compte)
 export const updateProfileSchema = z.object({
   firstname: z.string().min(3).max(30).trim().optional(),
-  lastname: z.string().min(1).max(30).trim().optional(),
+  lastname: z.string().max(30).trim().optional(),
   email: z.email("Email must be valid").trim().toLowerCase().optional(),
   tel: z.string().min(10).optional(),
 });

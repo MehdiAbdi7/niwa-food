@@ -113,7 +113,7 @@ export interface Order {
 export interface OrderDeliveryPerson {
   _id: string;
   firstname: string;
-  lastname: string;
+  lastname?: string;
   tel?: string;
 }
 

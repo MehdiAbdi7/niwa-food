@@ -252,12 +252,14 @@ export async function deleteUser(
   }
 }
 
-// --- Profil personnel (n'importe quel rôle, sur son propre compte) ---
+// --- Profil personnel (admin uniquement, sur son propre compte) ---
 
 // Volontairement séparé de updateUser : celui-ci n'accepte ni `role` ni
-// `store`, pour qu'un employee — ou un livreur — ne puisse jamais s'auto-
-// promouvoir admin en modifiant "son propre profil". Toute route self-service
-// doit rester strictement plus restrictive que la route admin équivalente.
+// `store`. La route est réservée à l'admin (isAdmin), mais la restriction
+// reste : si la route est un jour rouverte aux autres rôles, un employee ou un
+// livreur ne pourra toujours pas s'auto-promouvoir admin. Toute route
+// self-service doit rester strictement plus restrictive que la route admin
+// équivalente.
 export async function updateOwnProfile(
   req: Request<{}, {}, UpdateProfileInput>,
   res: Response,

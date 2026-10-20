@@ -15,7 +15,8 @@ export type UserRole = "admin" | "employee" | "delivery";
 export interface User {
   _id: string;
   firstname: string;
-  lastname: string;
+  // Facultatif : absent ou "" si l'admin ne l'a pas renseigné.
+  lastname?: string;
   email: string;
   tel: string;
   role: UserRole;
@@ -29,14 +30,14 @@ export interface User {
 export interface DeliveryPerson {
   _id: string;
   firstname: string;
-  lastname: string;
+  lastname?: string;
   tel: string;
   store: Store;
 }
 
 export interface CreateUserPayload {
   firstname: string;
-  lastname: string;
+  lastname?: string;
   email: string;
   tel: string;
   password: string;

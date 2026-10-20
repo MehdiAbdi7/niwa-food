@@ -8,7 +8,9 @@ type UserModel = Model<IUser, Record<string, never>, IUserMethods>;
 const userSchema = new Schema<IUser, UserModel, IUserMethods>(
   {
     firstname: { type: String, required: true, trim: true },
-    lastname: { type: String, required: true, trim: true },
+    // Facultatif. Pas de `required` : pour Mongoose, une chaîne vide compte
+    // comme une valeur manquante.
+    lastname: { type: String, trim: true },
     email: {
       type: String,
       required: true,

@@ -120,7 +120,7 @@ export function DeliveryPersonModal({
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 font-heading text-xs font-bold uppercase text-primary">
                 {person.firstname[0]}
-                {person.lastname[0]}
+                {person.lastname?.[0]}
               </span>
               <span className="flex min-w-0 flex-col">
                 <span className="truncate font-semibold text-foreground">

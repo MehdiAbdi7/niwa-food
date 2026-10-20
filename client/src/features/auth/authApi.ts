@@ -90,7 +90,7 @@ export const authApi = api.injectEndpoints({
       ],
     }),
 
-    // Self-service, disponible pour tout rôle : contact uniquement (jamais
+    // Profil personnel, réservé à l'admin : contact uniquement (jamais
     // role/store — voir PATCH /auth/me côté backend).
     updateOwnProfile: builder.mutation<
       User,

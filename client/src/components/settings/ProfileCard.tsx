@@ -11,7 +11,7 @@ import { useToast } from "@/features/toast/useToast";
 import { getApiErrorMessage } from "@/lib/apiError";
 
 export function ProfileCard() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const dispatch = useAppDispatch();
   const [updateOwnProfile, { isLoading }] = useUpdateOwnProfileMutation();
   const toast = useToast();
@@ -38,6 +38,40 @@ export function ProfileCard() {
     }
   }
 
+  // Seul l'admin modifie les infos des comptes (PATCH /auth/me lui est
+  // réservé). Les autres rôles voient leur profil en lecture seule : c'est
+  // l'API qui protège réellement, ceci évite d'afficher un formulaire qui
+  // répondrait 403.
+  if (!isAdmin) {
+    const fields = [
+      { label: "Prénom", value: user?.firstname },
+      { label: "Nom", value: user?.lastname },
+      { label: "Email", value: user?.email },
+      { label: "Téléphone", value: user?.tel },
+    ];
+
+    return (
+      <section className="surface-card flex flex-col gap-4 p-5">
+        <h2 className="font-heading text-base font-bold text-foreground">Mon profil</h2>
+
+        <dl className="grid gap-3 sm:grid-cols-2">
+          {fields.map(({ label, value }) => (
+            <div key={label} className="flex min-w-0 flex-col gap-1">
+              <dt className="text-sm font-semibold text-foreground">{label}</dt>
+              <dd className="break-words text-foreground/75">
+                {value || "Non renseigné"}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        <p className="text-sm text-foreground/75">
+          Pour modifier ces informations, demande à un administrateur.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section className="surface-card flex flex-col gap-4 p-5">
       <h2 className="font-heading text-base font-bold text-foreground">Mon profil</h2>
@@ -53,10 +87,9 @@ export function ProfileCard() {
           />
           <Input
             id="lastname"
-            label="Nom"
+            label="Nom (facultatif)"
             value={lastname}
             onChange={(e) => setLastname(e.target.value)}
-            required
           />
         </div>
         <Input

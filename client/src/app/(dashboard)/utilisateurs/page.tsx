@@ -103,7 +103,7 @@ export default function UtilisateursPage() {
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 font-heading text-sm font-bold text-primary">
                     {user.firstname[0]}
-                    {user.lastname[0]}
+                    {user.lastname?.[0]}
                   </div>
                   <div className="flex min-w-0 flex-col">
                     <span className="truncate font-semibold text-foreground">

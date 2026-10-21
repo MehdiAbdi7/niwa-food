@@ -121,7 +121,7 @@ export default async function Home({
           <SideDeco
             src="/deco.png"
             side="right"
-            className="top-1/2 h-240 -translate-y-1/2"
+            className="top-[58%] h-240 -translate-y-1/2"
             imageClassName="object-contain object-center"
           />
           <HowItWorks />
@@ -133,7 +133,7 @@ export default async function Home({
           <SideDeco
             src="/deco.png"
             side="left"
-            className="top-0 h-240 -translate-y-1/2"
+            className="top-[58%] h-240 -translate-y-1/2"
             imageClassName="object-contain object-center"
           />
           <Testimonials />

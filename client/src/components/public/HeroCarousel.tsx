@@ -379,7 +379,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
           type="button"
           onClick={goToPrev}
           aria-label={dict.hero.previous}
-          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-primary bg-linear-to-t from-primary/50 via-transparent to-transparent text-foreground transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:start-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
+          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-primary bg-primary text-background transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:start-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
         >
           <span
             aria-hidden="true"
@@ -404,7 +404,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
           type="button"
           onClick={goToNext}
           aria-label={dict.hero.next}
-          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-primary bg-linear-to-t from-primary/50 via-transparent to-transparent text-foreground transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:end-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
+          className="z-40 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-primary bg-primary text-background transition-transform hover:scale-110 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-foreground md:absolute md:end-0 md:top-[calc(50%-1.375rem)] md:-translate-y-1/2"
         >
           <span
             aria-hidden="true"

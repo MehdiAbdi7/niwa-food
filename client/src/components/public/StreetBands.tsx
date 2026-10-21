@@ -12,7 +12,13 @@ const BOOST_PER_SPEED = 4;
 const MAX_BOOST = 6;
 const BOOST_DECAY = 0.92;
 
-function BandWords({ words, chipColor }: { words: string[]; chipColor: string }) {
+function BandWords({
+  words,
+  chipColor,
+}: {
+  words: string[];
+  chipColor: string;
+}) {
   return words.map((word, index) => (
     <span
       key={word}
@@ -155,7 +161,7 @@ export function StreetBands() {
     <div
       ref={rootRef}
       aria-hidden="true"
-      className="relative z-10 -mt-10 h-36 overflow-x-clip sm:-mt-14 sm:h-44"
+      className="relative z-10 -mt-10 h-36 overflow-x-clip sm:-mt-22 sm:h-44"
     >
       {/* Couleurs en dur et non jetons du thème : chaque paire a été
           vérifiée pour ce seul usage (4,85:1 en clair, 6,6:1 en sombre). */}
@@ -163,7 +169,7 @@ export function StreetBands() {
         words={dict.bands.service}
         chipColor="var(--chip-sand)"
         reverse
-        className="top-[36%] -translate-y-1/2 rotate-[4deg]"
+        className="top-[58%] -translate-y-1/2 rotate-[4deg]"
         colorClassName="bg-[#965e4c] text-[#fbf5ef] dark:bg-[#8b2e3a] dark:text-[#ebe8b8]"
       />
       {/* Éclats couleur du fond de page : crème sur le bandeau brun en

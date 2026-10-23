@@ -109,7 +109,7 @@ export function BestSellerCard({
             seule laisserait croire qu'un tacos L coûte le prix d'un M. Même
             règle que DishCard et MenuItemCard. */}
         {lowestPrice !== null && (
-          <span className="absolute -top-4 right-3 -rotate-6 rounded-full bg-sticker px-3 py-1.5 font-heading text-sm font-bold leading-none text-sticker-ink shadow-[0_6px_14px_-6px_rgb(0_0_0/0.5)] transition-transform duration-500 ease-(--ease-pop) motion-safe:group-hover:rotate-3 motion-safe:group-hover:scale-110">
+          <span className="absolute -top-4 right-3 -rotate-6 rounded-full bg-sticker dark:bg-[#8b2e3a] px-3 py-1.5 font-heading text-sm font-bold leading-none text-sticker-ink dark:text-foreground shadow-[0_6px_14px_-6px_rgb(0_0_0/0.5)] transition-transform duration-500 ease-(--ease-pop) motion-safe:group-hover:rotate-3 motion-safe:group-hover:scale-110">
             {item.variants.length > 1 && (
               <span className="font-body font-semibold">
                 {dict.common.from}{" "}

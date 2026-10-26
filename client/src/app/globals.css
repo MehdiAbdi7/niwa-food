@@ -324,8 +324,9 @@ button,
 }
 
 /* Bascule de thème (switchTheme, dans useTheme.ts) : toute la page change en
-   un seul fondu. Les transitions des éléments sont coupées le temps de la
-   bascule, sinon elles rejoueraient par-dessus le fondu, chacune à sa vitesse. */
+   un seul fondu, ou d'un coup quand le fondu est impossible. Les transitions
+   des éléments sont coupées le temps du changement de classe
+   (applyThemeWithoutTransitions), sinon elles joueraient chacune à sa vitesse. */
 .theme-switching,
 .theme-switching *,
 .theme-switching *::before,
